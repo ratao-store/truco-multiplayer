@@ -1,0 +1,14 @@
+{
+  "name": "truco-multiplayer-seguro",
+  "version": "1.0.0",
+  "description": "Jogo de Truco Seguro em Tempo Real com Node.js e Socket.io",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
