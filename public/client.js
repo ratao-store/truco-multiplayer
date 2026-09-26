@@ -1,20 +1,39 @@
 const socket = io();
 
-let meuApelido = '';
-let meuTime = '';
+const loginContainer = document.getElementById('login-container');
+const appContainer = document.getElementById('app');
 
-socket.on('infoJogador', (data) => {
-  meuApelido = data.apelido;
-  meuTime = data.time;
-  document.getElementById('meu-info').innerText = `${meuApelido} (Time ${meuTime})`;
+const btnEntrar = document.getElementById('btn-entrar');
+const inputApelido = document.getElementById('input-apelido');
+const inputSala = document.getElementById('input-sala');
+const selectJogadores = document.getElementById('select-jogadores');
+
+btnEntrar.onclick = () => {
+  const apelido = inputApelido.value.trim() || 'Jogador_' + Math.floor(100 + Math.random() * 900);
+  const nomeSala = inputSala.value.trim() || 'sala-geral';
+  const maxJogadores = selectJogadores.value;
+
+  socket.emit('entrarOuCriarSala', { apelido, nomeSala, maxJogadores });
+};
+
+socket.on('erroEntrada', (msg) => {
+  alert(msg);
+});
+
+socket.on('sucessoEntrada', (data) => {
+  loginContainer.style.display = 'none';
+  appContainer.style.display = 'flex';
+  
+  document.getElementById('label-nome-sala').innerText = data.nomeSala;
+  document.getElementById('meu-info').innerText = `${data.apelido} (Time ${data.time})`;
 });
 
 socket.on('atualizarJogadores', (jogadores) => {
   const timeA = jogadores.filter(j => j.time === 'A').map(j => j.apelido).join(' & ');
   const timeB = jogadores.filter(j => j.time === 'B').map(j => j.apelido).join(' & ');
 
-  document.getElementById('nome-time-a').innerText = timeA || 'Time A';
-  document.getElementById('nome-time-b').innerText = timeB || 'Time B';
+  document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
+  document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
 });
 
 socket.on('novaMao', (data) => {
@@ -57,9 +76,9 @@ socket.on('atualizarMesa', (cartasMesa) => {
 });
 
 socket.on('atualizarVez', (apelido) => {
-  document.getElementById('status-vez').innerText = `Vez de: ${apelido}`;
+  document.getElementById('status-vez').innerText = apelido.includes('Aguardando') ? apelido : `Vez de: ${apelido}`;
 });
 
 socket.on('fimDeJogo', (data) => {
-  alert(`Fim de jogo! Vencedor: ${data.vencedor}`);
+  alert(`Fim de jogo! Vencedores: ${data.vencedor}`);
 });
