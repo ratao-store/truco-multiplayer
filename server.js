@@ -22,7 +22,6 @@ function criarBaralho() {
   return baralho.sort(() => Math.random() - 0.5);
 }
 
-// Ordem de força no Truco Paulista
 const FORCA_VALORES = { '4': 1, '5': 2, '6': 3, '7': 4, 'Q': 5, 'J': 6, 'K': 7, 'A': 8, '2': 9, '3': 10 };
 const FORCA_NAIPES = { '♦': 1, '♠': 2, '♥': 3, '♣': 4 };
 
@@ -43,11 +42,11 @@ let gameState = {
 
 io.on('connection', (socket) => {
   if (jogadores.length >= 4) {
-    socket.emit('erro', 'A mesa já está cheia (máximo 4 jogadores).');
+    socket.emit('erro', 'Mesa cheia.');
     return;
   }
 
-  const apelido = 'Jogador_' + Math.floor(1000 + Math.random() * 9000);
+  const apelido = 'Jogador_' + Math.floor(100 + Math.random() * 900);
   const time = jogadores.length % 2 === 0 ? 'A' : 'B';
   const jogador = { id: socket.id, apelido, time, cartas: [] };
   jogadores.push(jogador);
@@ -55,14 +54,17 @@ io.on('connection', (socket) => {
   socket.emit('infoJogador', { apelido, time });
   io.emit('atualizarJogadores', jogadores);
 
-  if (jogadores.length === 4 && !gameState.emAndamento) {
+  // Inicia ou reinicia o jogo quando houver pelo menos 2 jogadores
+  if (jogadores.length >= 2 && !gameState.emAndamento) {
     iniciarJogo();
   }
 
   socket.on('jogarCarta', (indexCarta) => {
     if (!gameState.emAndamento) return;
     const jogadorAtual = jogadores[gameState.vezIndex];
-    if (jogadorAtual.id !== socket.id) return;
+    if (!jogadorAtual || jogadorAtual.id !== socket.id) return;
+
+    if (indexCarta < 0 || indexCarta >= jogadorAtual.cartas.length) return;
 
     const cartaJogada = jogadorAtual.cartas.splice(indexCarta, 1)[0];
     gameState.cartasMesa.push({ jogador: jogadorAtual, carta: cartaJogada });
@@ -70,10 +72,11 @@ io.on('connection', (socket) => {
     io.emit('atualizarMesa', gameState.cartasMesa);
     socket.emit('minhasCartas', jogadorAtual.cartas);
 
-    if (gameState.cartasMesa.length === 4) {
-      setTimeout(processarFimDeRodada, 1500);
+    // Se todos os conectados jogaram na rodada
+    if (gameState.cartasMesa.length === jogadores.length) {
+      setTimeout(processarFimDeRodada, 1200);
     } else {
-      gameState.vezIndex = (gameState.vezIndex + 1) % 4;
+      gameState.vezIndex = (gameState.vezIndex + 1) % jogadores.length;
       io.emit('atualizarVez', jogadores[gameState.vezIndex].apelido);
     }
   });
@@ -82,7 +85,7 @@ io.on('connection', (socket) => {
     jogadores = jogadores.filter(j => j.id !== socket.id);
     gameState.emAndamento = false;
     io.emit('atualizarJogadores', jogadores);
-    io.emit('jogoInterrompido');
+    io.emit('atualizarVez', 'Aguardando jogadores...');
   });
 });
 
@@ -95,6 +98,11 @@ function iniciarJogo() {
 }
 
 function iniciarNovaMao() {
+  if (jogadores.length < 2) {
+    gameState.emAndamento = false;
+    return;
+  }
+
   const baralho = criarBaralho();
   gameState.valorMao = 1;
   gameState.rodadasVencidas = { A: 0, B: 0 };
@@ -110,7 +118,7 @@ function iniciarNovaMao() {
     io.to(j.id).emit('minhasCartas', j.cartas);
   });
 
-  gameState.vezIndex = gameState.maoIndex % 4;
+  gameState.vezIndex = gameState.maoIndex % jogadores.length;
   io.emit('novaMao', {
     vira: gameState.vira,
     pontosA: gameState.pontosA,
