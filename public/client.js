@@ -1,84 +1,65 @@
 const socket = io();
-let idSalaAtual = '';
 
-function entrarNaSala() {
-  const nome = document.getElementById('nomeJogador').value.trim();
-  const sala = document.getElementById('idSala').value.trim();
-  const max = document.getElementById('maxJogadores').value;
+let meuApelido = '';
+let meuTime = '';
 
-  if (!nome || !sala) {
-    alert('Preencha seu apelido e a sala!');
-    return;
-  }
-
-  idSalaAtual = sala;
-  socket.emit('entrarSala', { nomeJogador: nome, idSala: sala, maxJogadores: max });
-
-  document.getElementById('telaLobby').classList.add('oculto');
-  document.getElementById('telaJogo').classList.remove('oculto');
-}
-
-socket.on('suaMao', ({ mao, vira, proximoJogadorId, nomeProximo }) => {
-  document.getElementById('cartaVira').innerText = `${vira.valor} ${vira.naipe.split(' ')[0]}`;
-  document.getElementById('cartasNaMesa').innerHTML = '';
-
-  const divMinhasCartas = document.getElementById('minhasCartas');
-  divMinhasCartas.innerHTML = '';
-
-  mao.forEach((carta, index) => {
-    const btn = document.createElement('div');
-    btn.className = 'carta-display carta-mao';
-    btn.innerText = `${carta.valor}\n${carta.naipe.split(' ')[0]}`;
-    btn.onclick = () => socket.emit('jogarCarta', { idSala: idSalaAtual, indexCarta: index });
-    divMinhasCartas.appendChild(btn);
-  });
-
-  atualizarTurno(proximoJogadorId, nomeProximo);
+socket.on('infoJogador', (data) => {
+  meuApelido = data.apelido;
+  meuTime = data.time;
+  document.getElementById('meu-info').innerText = `${meuApelido} (${meuTime === 'A' ? 'Time A' : 'Time B'})`;
 });
 
-socket.on('cartaJogada', ({ nomeJogador, carta }) => {
-  const mesa = document.getElementById('cartasNaMesa');
-  const wrapper = document.createElement('div');
-  wrapper.className = 'carta-mesa-wrapper';
-
-  const card = document.createElement('div');
-  card.className = 'carta-display';
-  card.innerText = `${carta.valor}\n${carta.naipe.split(' ')[0]}`;
-
-  const label = document.createElement('span');
-  label.innerText = nomeJogador;
-
-  wrapper.appendChild(card);
-  wrapper.appendChild(label);
-  mesa.appendChild(wrapper);
+socket.on('atualizarJogadores', (jogadores) => {
+  const timeA = jogadores.filter(j => j.time === 'A').map(j => j.apelido).join(' & ');
+  const timeB = jogadores.filter(j => j.time === 'B').map(j => j.apelido).join(' & ');
+  
+  document.getElementById('nome-time-a').innerText = timeA || 'Time A';
+  document.getElementById('nome-time-b').innerText = timeB || 'Time B';
 });
 
-socket.on('atualizarPlacar', (pontos) => {
-  document.getElementById('placarNos').innerText = pontos.nos;
-  document.getElementById('placarEles').innerText = pontos.eles;
-});
-
-socket.on('atualizarValorRodada', (valor) => {
-  document.getElementById('valorRodada').innerText = valor;
-});
-
-socket.on('mensagemStatus', (msg) => {
-  document.getElementById('statusMesa').innerText = msg;
-});
-
-socket.on('proximoTurno', ({ proximoJogadorId, nomeProximo }) => {
-  atualizarTurno(proximoJogadorId, nomeProximo);
-});
-
-function pedirTruco() {
-  socket.emit('pedirTruco', { idSala: idSalaAtual });
-}
-
-function atualizarTurno(idProximo, nomeProximo) {
-  const status = document.getElementById('statusMesa');
-  if (idProximo === socket.id) {
-    status.innerText = 'Sua vez de jogar!';
+socket.on('novaMao', (data) => {
+  document.getElementById('pontos-a').innerText = data.pontosA;
+  document.getElementById('pontos-b').innerText = data.pontosB;
+  document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
+  
+  const viraEl = document.getElementById('carta-vira');
+  viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
+  if (data.vira.naipe === '♦' || data.vira.naipe === '♥') {
+    viraEl.classList.add('vermelho');
   } else {
-    status.innerText = `Vez de: ${nomeProximo}`;
+    viraEl.classList.remove('vermelho');
   }
-}
+});
+
+socket.on('minhasCartas', (cartas) => {
+  const container = document.getElementById('minhas-cartas');
+  container.innerHTML = '';
+  
+  cartas.forEach((c, index) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'carta' + (c.naipe === '♦' || c.naipe === '♥' ? ' vermelho' : '');
+    cardEl.innerText = `${c.valor}${c.naipe}`;
+    cardEl.onclick = () => socket.emit('jogarCarta', index);
+    container.appendChild(cardEl);
+  });
+});
+
+socket.on('atualizarMesa', (cartasMesa) => {
+  const container = document.getElementById('cartas-mesa');
+  container.innerHTML = '';
+  
+  cartasMesa.forEach(item => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'carta' + (item.carta.naipe === '♦' || item.carta.naipe === '♥' ? ' vermelho' : '');
+    cardEl.innerText = `${item.carta.valor}${item.carta.naipe}`;
+    container.appendChild(cardEl);
+  });
+});
+
+socket.on('atualizarVez', (apelido) => {
+  document.getElementById('status-vez').innerText = `Vez de: ${apelido}`;
+});
+
+socket.on('fimDeJogo', (data) => {
+  alert(`Fim de jogo! Vencedor: ${data.vencedor}`);
+});
