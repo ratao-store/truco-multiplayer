@@ -7,8 +7,38 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app">
+
+  <!-- TELA DE LOGIN / CRIAR SALA -->
+  <div id="login-container">
+    <div class="card-login">
+      <h2>Truco Paulista</h2>
+      
+      <div class="form-group">
+        <label>Seu Apelido:</label>
+        <input type="text" id="input-apelido" placeholder="Ex: Rato123">
+      </div>
+
+      <div class="form-group">
+        <label>Nome da Sala:</label>
+        <input type="text" id="input-sala" placeholder="Ex: sala-dos-amigos">
+      </div>
+
+      <div class="form-group">
+        <label>Jogadores na Sala:</label>
+        <select id="select-jogadores">
+          <option value="2">2 Jogadores (1 vs 1)</option>
+          <option value="4" selected>4 Jogadores (2 vs 2)</option>
+        </select>
+      </div>
+
+      <button id="btn-entrar" class="btn-primary">Entrar / Criar Sala</button>
+    </div>
+  </div>
+
+  <!-- TELA DO JOGO (ESCONDIDA DE INÍCIO) -->
+  <div id="app" style="display: none;">
     <header>
+      <div class="info-sala">Sala: <span id="label-nome-sala"></span></div>
       <div class="placar">
         <div class="time time-a">
           <div id="nome-time-a" class="nomes">Time A</div>
@@ -20,7 +50,7 @@
           <div id="pontos-b" class="pts">0</div>
         </div>
       </div>
-      <div id="status-vez" class="status">Aguardando jogadores...</div>
+      <div id="status-vez" class="status">Aguardando...</div>
     </header>
 
     <main>
