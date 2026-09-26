@@ -25,122 +25,161 @@ function criarBaralho() {
 const FORCA_VALORES = { '4': 1, '5': 2, '6': 3, '7': 4, 'Q': 5, 'J': 6, 'K': 7, 'A': 8, '2': 9, '3': 10 };
 const FORCA_NAIPES = { '♦': 1, '♠': 2, '♥': 3, '♣': 4 };
 
-let jogadores = [];
-let gameState = {
-  emAndamento: false,
-  pontosA: 0,
-  pontosB: 0,
-  valorMao: 1,
-  vira: null,
-  manilhaValor: null,
-  rodadasVencidas: { A: 0, B: 0 },
-  historicoRodadas: [],
-  cartasMesa: [],
-  vezIndex: 0,
-  maoIndex: 0
-};
+// Gestão de salas
+let salas = {};
 
 io.on('connection', (socket) => {
-  if (jogadores.length >= 4) {
-    socket.emit('erro', 'Mesa cheia.');
-    return;
-  }
+  socket.on('entrarOuCriarSala', ({ apelido, nomeSala, maxJogadores }) => {
+    nomeSala = nomeSala.trim().toLowerCase();
+    
+    if (!salas[nomeSala]) {
+      // Cria a sala se não existir
+      salas[nomeSala] = {
+        nome: nomeSala,
+        maxJogadores: parseInt(maxJogadores) || 4,
+        jogadores: [],
+        gameState: {
+          emAndamento: false,
+          pontosA: 0,
+          pontosB: 0,
+          valorMao: 1,
+          vira: null,
+          manilhaValor: null,
+          rodadasVencidas: { A: 0, B: 0 },
+          historicoRodadas: [],
+          cartasMesa: [],
+          vezIndex: 0,
+          maoIndex: 0
+        }
+      };
+    }
 
-  const apelido = 'Jogador_' + Math.floor(100 + Math.random() * 900);
-  const time = jogadores.length % 2 === 0 ? 'A' : 'B';
-  const jogador = { id: socket.id, apelido, time, cartas: [] };
-  jogadores.push(jogador);
+    let sala = salas[nomeSala];
 
-  socket.emit('infoJogador', { apelido, time });
-  io.emit('atualizarJogadores', jogadores);
+    if (sala.jogadores.length >= sala.maxJogadores) {
+      socket.emit('erroEntrada', 'A sala está cheia!');
+      return;
+    }
 
-  // Inicia ou reinicia o jogo quando houver pelo menos 2 jogadores
-  if (jogadores.length >= 2 && !gameState.emAndamento) {
-    iniciarJogo();
-  }
+    const time = sala.jogadores.length % 2 === 0 ? 'A' : 'B';
+    const jogador = { id: socket.id, apelido, time, cartas: [] };
+    sala.jogadores.push(jogador);
+
+    socket.join(nomeSala);
+    socket.nomeSala = nomeSala;
+
+    socket.emit('sucessoEntrada', { apelido, time, nomeSala });
+    io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
+
+    if (sala.jogadores.length === sala.maxJogadores && !sala.gameState.emAndamento) {
+      iniciarJogo(nomeSala);
+    } else {
+      io.to(nomeSala).emit('atualizarVez', `Aguardando jogadores (${sala.jogadores.length}/${sala.maxJogadores})...`);
+    }
+  });
 
   socket.on('jogarCarta', (indexCarta) => {
-    if (!gameState.emAndamento) return;
-    const jogadorAtual = jogadores[gameState.vezIndex];
+    const nomeSala = socket.nomeSala;
+    if (!nomeSala || !salas[nomeSala]) return;
+    const sala = salas[nomeSala];
+    const gs = sala.gameState;
+
+    if (!gs.emAndamento) return;
+    const jogadorAtual = sala.jogadores[gs.vezIndex];
     if (!jogadorAtual || jogadorAtual.id !== socket.id) return;
 
     if (indexCarta < 0 || indexCarta >= jogadorAtual.cartas.length) return;
 
     const cartaJogada = jogadorAtual.cartas.splice(indexCarta, 1)[0];
-    gameState.cartasMesa.push({ jogador: jogadorAtual, carta: cartaJogada });
+    gs.cartasMesa.push({ jogador: jogadorAtual, carta: cartaJogada });
 
-    io.emit('atualizarMesa', gameState.cartasMesa);
+    io.to(nomeSala).emit('atualizarMesa', gs.cartasMesa);
     socket.emit('minhasCartas', jogadorAtual.cartas);
 
-    // Se todos os conectados jogaram na rodada
-    if (gameState.cartasMesa.length === jogadores.length) {
-      setTimeout(processarFimDeRodada, 1200);
+    if (gs.cartasMesa.length === sala.jogadores.length) {
+      setTimeout(() => processarFimDeRodada(nomeSala), 1200);
     } else {
-      gameState.vezIndex = (gameState.vezIndex + 1) % jogadores.length;
-      io.emit('atualizarVez', jogadores[gameState.vezIndex].apelido);
+      gs.vezIndex = (gs.vezIndex + 1) % sala.jogadores.length;
+      io.to(nomeSala).emit('atualizarVez', sala.jogadores[gs.vezIndex].apelido);
     }
   });
 
   socket.on('disconnect', () => {
-    jogadores = jogadores.filter(j => j.id !== socket.id);
-    gameState.emAndamento = false;
-    io.emit('atualizarJogadores', jogadores);
-    io.emit('atualizarVez', 'Aguardando jogadores...');
+    const nomeSala = socket.nomeSala;
+    if (nomeSala && salas[nomeSala]) {
+      let sala = salas[nomeSala];
+      sala.jogadores = sala.jogadores.filter(j => j.id !== socket.id);
+      sala.gameState.emAndamento = false;
+
+      if (sala.jogadores.length === 0) {
+        delete salas[nomeSala];
+      } else {
+        io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
+        io.to(nomeSala).emit('atualizarVez', 'Jogador desconectou. Aguardando...');
+      }
+    }
   });
 });
 
-function iniciarJogo() {
-  gameState.pontosA = 0;
-  gameState.pontosB = 0;
-  gameState.emAndamento = true;
-  gameState.maoIndex = 0;
-  iniciarNovaMao();
+function iniciarJogo(nomeSala) {
+  let sala = salas[nomeSala];
+  if (!sala) return;
+  
+  sala.gameState.pontosA = 0;
+  sala.gameState.pontosB = 0;
+  sala.gameState.emAndamento = true;
+  sala.gameState.maoIndex = 0;
+  iniciarNovaMao(nomeSala);
 }
 
-function iniciarNovaMao() {
-  if (jogadores.length < 2) {
-    gameState.emAndamento = false;
-    return;
-  }
+function iniciarNovaMao(nomeSala) {
+  let sala = salas[nomeSala];
+  if (!sala || sala.jogadores.length < sala.maxJogadores) return;
 
+  const gs = sala.gameState;
   const baralho = criarBaralho();
-  gameState.valorMao = 1;
-  gameState.rodadasVencidas = { A: 0, B: 0 };
-  gameState.historicoRodadas = [];
-  gameState.cartasMesa = [];
+  
+  gs.valorMao = 1;
+  gs.rodadasVencidas = { A: 0, B: 0 };
+  gs.historicoRodadas = [];
+  gs.cartasMesa = [];
 
-  gameState.vira = baralho.pop();
-  let idx = VALORES.indexOf(gameState.vira.valor);
-  gameState.manilhaValor = VALORES[(idx + 1) % VALORES.length];
+  gs.vira = baralho.pop();
+  let idx = VALORES.indexOf(gs.vira.valor);
+  gs.manilhaValor = VALORES[(idx + 1) % VALORES.length];
 
-  jogadores.forEach(j => {
+  sala.jogadores.forEach(j => {
     j.cartas = [baralho.pop(), baralho.pop(), baralho.pop()];
     io.to(j.id).emit('minhasCartas', j.cartas);
   });
 
-  gameState.vezIndex = gameState.maoIndex % jogadores.length;
-  io.emit('novaMao', {
-    vira: gameState.vira,
-    pontosA: gameState.pontosA,
-    pontosB: gameState.pontosB,
-    vez: jogadores[gameState.vezIndex].apelido
+  gs.vezIndex = gs.maoIndex % sala.jogadores.length;
+  io.to(nomeSala).emit('novaMao', {
+    vira: gs.vira,
+    pontosA: gs.pontosA,
+    pontosB: gs.pontosB,
+    vez: sala.jogadores[gs.vezIndex].apelido
   });
 }
 
-function calcularForca(carta) {
-  if (carta.valor === gameState.manilhaValor) {
+function calcularForca(carta, manilha) {
+  if (carta.valor === manilha) {
     return 100 + FORCA_NAIPES[carta.naipe];
   }
   return FORCA_VALORES[carta.valor];
 }
 
-function processarFimDeRodada() {
+function processarFimDeRodada(nomeSala) {
+  let sala = salas[nomeSala];
+  if (!sala) return;
+  let gs = sala.gameState;
+
   let maiorForca = -1;
   let vencedor = null;
   let empate = false;
 
-  gameState.cartasMesa.forEach(item => {
-    let forca = calcularForca(item.carta);
+  gs.cartasMesa.forEach(item => {
+    let forca = calcularForca(item.carta, gs.manilhaValor);
     if (forca > maiorForca) {
       maiorForca = forca;
       vencedor = item.jogador;
@@ -150,46 +189,43 @@ function processarFimDeRodada() {
     }
   });
 
-  let timeGanhadorRodada = empate ? 'empate' : vencedor.time;
-  gameState.historicoRodadas.push(timeGanhadorRodada);
+  let timeGanhador = empate ? 'empate' : vencedor.time;
+  gs.historicoRodadas.push(timeGanhador);
 
   if (!empate) {
-    gameState.rodadasVencidas[timeGanhadorRodada]++;
-    gameState.vezIndex = jogadores.findIndex(j => j.id === vencedor.id);
+    gs.rodadasVencidas[timeGanhador]++;
+    gs.vezIndex = sala.jogadores.findIndex(j => j.id === vencedor.id);
   }
 
-  gameState.cartasMesa = [];
-  io.emit('atualizarMesa', []);
+  gs.cartasMesa = [];
+  io.to(nomeSala).emit('atualizarMesa', []);
 
-  let ganhadorMao = verificarGanhadorMao();
+  let ganhadorMao = verificarGanhadorMao(gs.historicoRodadas, gs.rodadasVencidas);
 
   if (ganhadorMao) {
-    if (ganhadorMao === 'A') gameState.pontosA += gameState.valorMao;
-    if (ganhadorMao === 'B') gameState.pontosB += gameState.valorMao;
+    if (ganhadorMao === 'A') gs.pontosA += gs.valorMao;
+    if (ganhadorMao === 'B') gs.pontosB += gs.valorMao;
 
-    if (gameState.pontosA >= 12 || gameState.pontosB >= 12) {
-      io.emit('fimDeJogo', { vencedor: gameState.pontosA >= 12 ? 'Time A' : 'Time B' });
-      gameState.emAndamento = false;
+    if (gs.pontosA >= 12 || gs.pontosB >= 12) {
+      const timeVencedorNomes = sala.jogadores.filter(j => j.time === (gs.pontosA >= 12 ? 'A' : 'B')).map(j => j.apelido).join(' e ');
+      io.to(nomeSala).emit('fimDeJogo', { vencedor: timeVencedorNomes });
+      gs.emAndamento = false;
     } else {
-      gameState.maoIndex++;
-      iniciarNovaMao();
+      gs.maoIndex++;
+      iniciarNovaMao(nomeSala);
     }
   } else {
-    io.emit('atualizarVez', jogadores[gameState.vezIndex].apelido);
+    io.to(nomeSala).emit('atualizarVez', sala.jogadores[gs.vezIndex].apelido);
   }
 }
 
-function verificarGanhadorMao() {
-  const h = gameState.historicoRodadas;
-  const vA = gameState.rodadasVencidas.A;
-  const vB = gameState.rodadasVencidas.B;
+function verificarGanhadorMao(historico, v) {
+  if (v.A === 2) return 'A';
+  if (v.B === 2) return 'B';
 
-  if (vA === 2) return 'A';
-  if (vB === 2) return 'B';
-
-  if (h.length === 2 && h[0] === 'empate' && h[1] !== 'empate') return h[1];
-  if (h.length === 2 && h[1] === 'empate' && h[0] !== 'empate') return h[0];
-  if (h.length === 3 && h[2] === 'empate') return h[0] !== 'empate' ? h[0] : 'A';
+  if (historico.length === 2 && historico[0] === 'empate' && historico[1] !== 'empate') return historico[1];
+  if (historico.length === 2 && historico[1] === 'empate' && historico[0] !== 'empate') return historico[0];
+  if (historico.length === 3 && historico[2] === 'empate') return historico[0] !== 'empate' ? historico[0] : 'A';
 
   return null;
 }
