@@ -1,426 +1,412 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-const salas = {};
+const NAIPES = ['♦', '♠', '♥', '♣']; // Ouros, Espadas, Copas, Paus (Ordem de força do Truco Paulista)
+const VALORES_ORDEM = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
 
-const NAIPES = ['♣', '♥', '♠', '♦'];
-const VALORES = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
-
-const FORCA_CARTA = {
-  '4': 1, '5': 2, '6': 3, '7': 4,
-  'Q': 5, 'J': 6, 'K': 7, 'A': 8,
-  '2': 9, '3': 10
-};
-
-// Ordem dos Quatro Paus do Truco Paulista
-const FORCA_NAIPE = {
-  '♣': 4, // Zap (Mais forte)
-  '♥': 3, // Copas
-  '♠': 2, // Espadilha
-  '♦': 1  // Ouros
-};
+let salas = {};
 
 function criarBaralho() {
-  const baralho = [];
-  for (let naipe of NAIPES) {
-    for (let valor of VALORES) {
+  let baralho = [];
+  for (let valor of VALORES_ORDEM) {
+    for (let naipe of NAIPES) {
       baralho.push({ valor, naipe });
     }
   }
   return baralho.sort(() => Math.random() - 0.5);
 }
 
-function proximaCarta(valor) {
-  const idx = VALORES.indexOf(valor);
-  return VALORES[(idx + 1) % VALORES.length];
+function obterProximaCartaValor(valorVira) {
+  let idx = VALORES_ORDEM.indexOf(valorVira);
+  let proxIdx = (idx + 1) % VALORES_ORDEM.length;
+  return VALORES_ORDEM[proxIdx];
 }
 
-function calcularForca(carta, valorManilha) {
+function calcularForcaCarta(carta, valorManilha) {
   if (carta.valor === valorManilha) {
-    return 100 + FORCA_NAIPE[carta.naipe];
+    const forcaNaipes = { '♦': 101, '♠': 102, '♥': 103, '♣': 104 };
+    return forcaNaipes[carta.naipe];
   }
-  return FORCA_CARTA[carta.valor];
+  return VALORES_ORDEM.indexOf(carta.valor);
 }
 
-function iniciarNovaMao(nomeSala) {
-  const sala = salas[nomeSala];
-  if (!sala) return;
-
+function iniciarNovaMao(sala) {
   sala.baralho = criarBaralho();
   sala.vira = sala.baralho.pop();
-  sala.valorManilha = proximaCarta(sala.vira.valor);
+  sala.valorManilha = obterProximaCartaValor(sala.vira.valor);
   sala.valorMao = 1;
-  sala.trucoPendente = null;
   sala.ultimoPediuTime = null;
-  sala.jogadasRodadaAtual = [];
-  sala.rodadasGanhas = { A: 0, B: 0 };
+  sala.cartasMesa = [];
   sala.historicoRodadas = [];
-  sala.aguardandoMao11 = false;
+  sala.processandoTurno = false;
 
-  const pA = sala.pontos.A;
-  const pB = sala.pontos.B;
-  const maoDeFerro = (pA === 11 && pB === 11);
-  const isMaoDe11 = (pA === 11 || pB === 11) && !maoDeFerro;
+  // Verificação de Mão de 11 e Mão de Ferro
+  sala.isMaoDe11 = (sala.pontosA === 11 || sala.pontosB === 11) && !(sala.pontosA === 11 && sala.pontosB === 11);
+  sala.maoDeFerro = (sala.pontosA === 11 && sala.pontosB === 11);
 
+  if (sala.isMaoDe11) {
+    sala.valorMao = 3; // Se aceitarem jogar na Mão de 11, a mão vale 3 pontos
+    sala.timeNaMao11 = sala.pontosA === 11 ? 'A' : 'B';
+    sala.mao11Decidida = false;
+  }
+
+  // Distribuir 3 cartas para cada jogador
   sala.jogadores.forEach(j => {
     j.cartas = [sala.baralho.pop(), sala.baralho.pop(), sala.baralho.pop()];
   });
 
-  if (sala.indiceIniciadorMao === undefined) {
-    sala.indiceIniciadorMao = 0;
-  } else {
-    sala.indiceIniciadorMao = (sala.indiceIniciadorMao + 1) % sala.jogadores.length;
-  }
-  
-  // Define quem começa a primeira rodada da mão
-  sala.indiceVez = sala.indiceIniciadorMao;
-  sala.primeiroDaRodadaAtual = sala.indiceIniciadorMao;
+  // Alternar o distribuidor (pé) e definir o primeiro a jogar
+  sala.indicePe = (sala.indicePe + 1) % sala.jogadores.length;
+  sala.indiceTurno = (sala.indicePe + 1) % sala.jogadores.length;
 
-  sala.jogadores.forEach(j => {
-    if (j.id) {
-      io.to(j.id).emit('minhasCartas', {
-        cartas: j.cartas,
-        noEscuro: maoDeFerro
-      });
-    }
-  });
-
-  io.to(nomeSala).emit('novaMao', {
+  // Notificar clientes
+  io.to(sala.nome).emit('novaMao', {
     vira: sala.vira,
     valorManilha: sala.valorManilha,
-    valorMao: isMaoDe11 ? 3 : 1,
-    pontosA: pA,
-    pontosB: pB,
-    vez: sala.jogadores[sala.indiceVez].apelido,
-    maoDeFerro,
-    isMaoDe11
+    valorMao: sala.valorMao,
+    pontosA: sala.pontosA,
+    pontosB: sala.pontosB,
+    vez: sala.jogadores[sala.indiceTurno].apelido,
+    isMaoDe11: sala.isMaoDe11,
+    maoDeFerro: sala.maoDeFerro
   });
 
-  io.to(nomeSala).emit('atualizarEstadoTruco', {
-    valorMao: isMaoDe11 ? 3 : 1,
-    ultimoPediuTime: null,
-    bloqueado: isMaoDe11 || maoDeFerro
+  sala.jogadores.forEach(j => {
+    io.to(j.id).emit('minhasCartas', {
+      cartas: j.cartas,
+      noEscuro: sala.maoDeFerro
+    });
   });
 
-  if (isMaoDe11) {
-    sala.valorMao = 3;
-    sala.aguardandoMao11 = true;
-    sala.timeNaMao11 = pA === 11 ? 'A' : 'B';
-    io.to(nomeSala).emit('decisaoMao11Pendente', { timeNaMao11: sala.timeNaMao11 });
+  if (sala.isMaoDe11) {
+    io.to(sala.nome).emit('decisaoMao11Pendente', { timeNaMao11: sala.timeNaMao11 });
+  } else {
+    iniciarTimerTurno(sala);
   }
-
-  io.to(nomeSala).emit('atualizarMesa', []);
-  io.to(nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
 }
 
-function verificarFimMao(nomeSala) {
-  const sala = salas[nomeSala];
-  let timeVencedorMao = null;
-  const r = sala.historicoRodadas;
+function iniciarTimerTurno(sala) {
+  if (sala.timerTurno) clearTimeout(sala.timerTurno);
+  
+  const jogadorAtual = sala.jogadores[sala.indiceTurno];
+  io.to(sala.nome).emit('atualizarVez', jogadorAtual.apelido);
 
-  if (r.length === 1) {
-    if (sala.rodadasGanhas.A === 2) timeVencedorMao = 'A';
-    if (sala.rodadasGanhas.B === 2) timeVencedorMao = 'B';
-  } else if (r.length === 2) {
-    if (sala.rodadasGanhas.A >= 2) timeVencedorMao = 'A';
-    else if (sala.rodadasGanhas.B >= 2) timeVencedorMao = 'B';
-    else if (r[1] === 'Empate') {
-      if (r[0] !== 'Empate') timeVencedorMao = r[0];
-    } else if (r[0] === 'Empate') {
-      if (r[1] !== 'Empate') timeVencedorMao = r[1];
+  sala.timerTurno = setTimeout(() => {
+    if (sala.jogadores.length === sala.maxJogadores && !sala.processandoTurno) {
+      // Força a jogada da primeira carta disponível se estourar 20 segundos
+      const jogador = sala.jogadores[sala.indiceTurno];
+      if (jogador && jogador.cartas.length > 0) {
+        executarJogadaCarta(sala, jogador, 0, false);
+      }
     }
-  } else if (r.length === 3) {
-    if (sala.rodadasGanhas.A > sala.rodadasGanhas.B) timeVencedorMao = 'A';
-    else if (sala.rodadasGanhas.B > sala.rodadasGanhas.A) timeVencedorMao = 'B';
-    else if (r[2] === 'Empate') {
-      if (r[0] !== 'Empate') timeVencedorMao = r[0];
-      else timeVencedorMao = 'A';
+  }, 20000);
+}
+
+function processarFimDaRodada(sala) {
+  let maiorForca = -1;
+  let vencedorJogada = null;
+  let empate = false;
+
+  sala.cartasMesa.forEach(item => {
+    if (item.escondida) return; // Carta coberta tem força 0
+    let f = calcularForcaCarta(item.carta, sala.valorManilha);
+    if (f > maiorForca) {
+      maiorForca = f;
+      vencedorJogada = item.jogador;
+      empate = false;
+    } else if (f === maiorForca) {
+      empate = true;
+    }
+  });
+
+  let resultadoRodada = empate ? 'Empate' : vencedorJogada.time;
+  sala.historicoRodadas.push(resultadoRodada);
+
+  io.to(sala.nome).emit('atualizarRodadasMao', sala.historicoRodadas);
+
+  // Efeito Zap/Manilha se a carta mais forte da rodada for Manilha
+  if (!empate && vencedorJogada) {
+    let cartaGanhadora = sala.cartasMesa.find(i => i.jogador === vencedorJogada).carta;
+    if (cartaGanhadora.valor === sala.valorManilha) {
+      io.to(sala.nome).emit('efeitoManilhaZap', {
+        carta: cartaGanhadora,
+        isZap: cartaGanhadora.naipe === '♣'
+      });
+    }
+  }
+
+  // Definir quem começa a próxima rodada (quem ganhou a vaza atual)
+  if (!empate && vencedorJogada) {
+    sala.indiceTurno = sala.jogadores.findIndex(j => j.id === vencedorJogada.id);
+  }
+
+  // Verificar se alguém venceu a Mão (Melhor de 3)
+  let vencedorMao = determinarVencedorMao(sala.historicoRodadas);
+
+  setTimeout(() => {
+    sala.cartasMesa = [];
+    io.to(sala.nome).emit('atualizarMesa', []);
+
+    if (vencedorMao) {
+      finalizarMao(sala, vencedorMao);
     } else {
-      timeVencedorMao = r[2] !== 'Empate' ? r[2] : 'A';
+      sala.processandoTurno = false;
+      iniciarTimerTurno(sala);
     }
+  }, 3000); // Aguarda 3s para mostrar as cartas jogadas na mesa
+}
+
+function determinarVencedorMao(historico) {
+  let vitoriasA = historico.filter(r => r === 'A').length;
+  let vitoriasB = historico.filter(r => r === 'B').length;
+
+  if (vitoriasA >= 2) return 'A';
+  if (vitoriasB >= 2) return 'B';
+
+  if (historico.length === 2) {
+    if (historico[0] === 'Empate' && historico[1] !== 'Empate') return historico[1];
+    if (historico[1] === 'Empate' && historico[0] !== 'Empate') return historico[0];
   }
 
-  if (timeVencedorMao) {
-    sala.pontos[timeVencedorMao] += sala.valorMao;
-
-    if (sala.pontos[timeVencedorMao] >= 12) {
-      sala.trofeus[timeVencedorMao] += 1;
-      io.to(nomeSala).emit('atualizarTrofeus', sala.trofeus);
-      io.to(nomeSala).emit('fimDePartida', { vencedor: timeVencedorMao });
-      sala.pontos = { A: 0, B: 0 };
-    }
-
-    iniciarNovaMao(nomeSala);
-    return true;
+  if (historico.length === 3) {
+    if (historico[2] !== 'Empate') return historico[2];
+    if (historico[0] !== 'Empate') return historico[0];
   }
-  return false;
+
+  return null;
+}
+
+function finalizarMao(sala, timeVencedor) {
+  if (sala.timerTurno) clearTimeout(sala.timerTurno);
+
+  if (timeVencedor === 'A') sala.pontosA += sala.valorMao;
+  if (timeVencedor === 'B') sala.pontosB += sala.valorMao;
+
+  if (sala.pontosA >= 12 || sala.pontosB >= 12) {
+    let campeao = sala.pontosA >= 12 ? 'A' : 'B';
+    if (campeao === 'A') sala.trofeusA++;
+    else sala.trofeusB++;
+
+    io.to(sala.nome).emit('fimDePartida', { vencedor: campeao });
+    io.to(sala.nome).emit('atualizarTrofeus', { a: sala.trofeusA, b: sala.trofeusB });
+
+    sala.pontosA = 0;
+    sala.pontosB = 0;
+  }
+
+  iniciarNovaMao(sala);
+}
+
+function executarJogadaCarta(sala, jogador, indiceCarta, esconder) {
+  let cartaJogada = jogador.cartas.splice(indiceCarta, 1)[0];
+  sala.cartasMesa.push({
+    jogador,
+    carta: cartaJogada,
+    escondida: esconder
+  });
+
+  io.to(sala.nome).emit('atualizarMesa', sala.cartasMesa);
+  io.to(jogador.id).emit('minhasCartas', { cartas: jogador.cartas, noEscuro: sala.maoDeFerro });
+
+  // Se todos jogaram na rodada
+  if (sala.cartasMesa.length === sala.jogadores.length) {
+    sala.processandoTurno = true;
+    if (sala.timerTurno) clearTimeout(sala.timerTurno);
+    processarFimDaRodada(sala);
+  } else {
+    sala.indiceTurno = (sala.indiceTurno + 1) % sala.jogadores.length;
+    iniciarTimerTurno(sala);
+  }
 }
 
 io.on('connection', (socket) => {
 
   socket.on('criarSala', ({ apelido, nomeSala, maxJogadores }) => {
-    if (salas[nomeSala]) return socket.emit('erroEntrada', 'A sala já existe!');
+    let max = parseInt(maxJogadores) === 2 ? 2 : 4;
+    if (salas[nomeSala]) {
+      return socket.emit('erroEntrada', 'Já existe uma sala com este nome!');
+    }
+
     salas[nomeSala] = {
-      maxJogadores: parseInt(maxJogadores) || 4,
-      jogadores: [], pontos: { A: 0, B: 0 }, trofeus: { A: 0, B: 0 },
-      emAndamento: false, valorMao: 1, ultimoPediuTime: null
+      nome: nomeSala,
+      maxJogadores: max,
+      jogadores: [],
+      pontosA: 0,
+      pontosB: 0,
+      trofeusA: 0,
+      trofeusB: 0,
+      indicePe: -1,
+      timerTurno: null,
+      processandoTurno: false
     };
+
     entrarNaSala(socket, apelido, nomeSala);
   });
 
   socket.on('entrarSala', ({ apelido, nomeSala }) => {
-    const sala = salas[nomeSala];
-    if (!sala) return socket.emit('erroEntrada', 'Sala não encontrada!');
-
-    const jogadorExistente = sala.jogadores.find(j => j.apelido.toLowerCase() === apelido.toLowerCase());
-    if (jogadorExistente) {
-      if (jogadorExistente.online) return socket.emit('erroEntrada', 'Apelido em uso!');
-      jogadorExistente.id = socket.id;
-      jogadorExistente.online = true;
-      socket.join(nomeSala);
-      socket.nomeSala = nomeSala;
-      socket.apelido = jogadorExistente.apelido;
-      socket.time = jogadorExistente.time;
-
-      socket.emit('sucessoEntrada', { apelido: jogadorExistente.apelido, time: jogadorExistente.time, nomeSala });
-      io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
-      return;
+    if (!salas[nomeSala]) {
+      return socket.emit('erroEntrada', 'Sala não encontrada!');
     }
-
     entrarNaSala(socket, apelido, nomeSala);
   });
 
   function entrarNaSala(socket, apelido, nomeSala) {
-    const sala = salas[nomeSala];
-    const time = sala.jogadores.length % 2 === 0 ? 'A' : 'B';
+    let sala = salas[nomeSala];
 
+    if (sala.jogadores.length >= sala.maxJogadores) {
+      return socket.emit('erroEntrada', 'A sala já está cheia!');
+    }
+
+    let timeA = sala.jogadores.filter(j => j.time === 'A').length;
+    let timeB = sala.jogadores.filter(j => j.time === 'B').length;
+    let timeAtribuido = (timeA <= timeB) ? 'A' : 'B';
+
+    let novoJogador = {
+      id: socket.id,
+      apelido,
+      time: timeAtribuido,
+      cartas: []
+    };
+
+    sala.jogadores.push(novoJogador);
     socket.join(nomeSala);
     socket.nomeSala = nomeSala;
-    socket.apelido = apelido;
-    socket.time = time;
 
-    sala.jogadores.push({ id: socket.id, apelido, time, cartas: [], online: true });
-    socket.emit('sucessoEntrada', { apelido, time, nomeSala });
+    socket.emit('sucessoEntrada', { apelido, time: timeAtribuido, nomeSala });
     io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
 
-    if (sala.jogadores.length === sala.maxJogadores && !sala.emAndamento) {
-      sala.emAndamento = true;
-      iniciarNovaMao(nomeSala);
+    if (sala.jogadores.length === sala.maxJogadores) {
+      iniciarNovaMao(sala);
     }
   }
 
-  socket.on('respostaMao11', (aceitou) => {
-    const sala = salas[socket.nomeSala];
-    if (!sala || !sala.aguardandoMao11 || socket.time !== sala.timeNaMao11) return;
-
-    sala.aguardandoMao11 = false;
-    if (aceitou) {
-      io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
-    } else {
-      const adversario = sala.timeNaMao11 === 'A' ? 'B' : 'A';
-      sala.pontos[adversario] += 1;
-      if (sala.pontos[adversario] >= 12) {
-        sala.trofeus[adversario] += 1;
-        io.to(socket.nomeSala).emit('atualizarTrofeus', sala.trofeus);
-        io.to(socket.nomeSala).emit('fimDePartida', { vencedor: adversario });
-        sala.pontos = { A: 0, B: 0 };
-      }
-      iniciarNovaMao(socket.nomeSala);
-    }
-  });
-
   socket.on('jogarCarta', ({ indiceCarta, esconder }) => {
-    const sala = salas[socket.nomeSala];
-    if (!sala || !sala.emAndamento || sala.aguardandoMao11 || sala.trucoPendente) return;
+    let sala = salas[socket.nomeSala];
+    if (!sala || sala.processandoTurno) return;
 
-    const jogadorDaVez = sala.jogadores[sala.indiceVez];
-    if (jogadorDaVez.id !== socket.id) return;
+    let jogadorAtual = sala.jogadores[sala.indiceTurno];
+    if (jogadorAtual.id !== socket.id) return;
 
-    const jogador = sala.jogadores.find(j => j.id === socket.id);
-    if (!jogador || !jogador.cartas[indiceCarta]) return;
-
-    const cartaJogada = jogador.cartas.splice(indiceCarta, 1)[0];
-    const cartaEscondida = esconder && (sala.historicoRodadas.length >= 1);
-
-    const isManilha = (cartaJogada.valor === sala.valorManilha);
-    const isZap = (isManilha && cartaJogada.naipe === '♣');
-
-    if (isManilha && !cartaEscondida) {
-      io.to(socket.nomeSala).emit('efeitoManilhaZap', { carta: cartaJogada, isZap });
-    }
-
-    sala.jogadasRodadaAtual.push({
-      jogadorId: socket.id,
-      jogadorIndex: sala.indiceVez,
-      jogador: jogador.apelido,
-      time: jogador.time,
-      carta: cartaJogada,
-      escondida: cartaEscondida
-    });
-
-    socket.emit('minhasCartas', {
-      cartas: jogador.cartas,
-      noEscuro: (sala.pontos.A === 11 && sala.pontos.B === 11)
-    });
-
-    io.to(socket.nomeSala).emit('atualizarMesa', sala.jogadasRodadaAtual);
-
-    // Se todos os jogadores já jogaram na rodada atual
-    if (sala.jogadasRodadaAtual.length === sala.jogadores.length) {
-      setTimeout(() => {
-        let maiorForca = -1;
-        let vencedorJogada = null;
-        let empate = false;
-
-        sala.jogadasRodadaAtual.forEach(j => {
-          let f = j.escondida ? 0 : calcularForca(j.carta, sala.valorManilha);
-          if (f > maiorForca) {
-            maiorForca = f; 
-            vencedorJogada = j; 
-            empate = false;
-          } else if (f === maiorForca) {
-            empate = true;
-          }
-        });
-
-        if (empate) {
-          sala.historicoRodadas.push('Empate');
-          // Em caso de canga (empate), torna quem começou a rodada anterior
-          sala.indiceVez = sala.primeiroDaRodadaAtual;
-        } else {
-          sala.rodadasGanhas[vencedorJogada.time] += 1;
-          sala.historicoRodadas.push(vencedorJogada.time);
-          
-          // REGRA CORRIGIDA: Quem matou a carta (venceu a rodada) joga primeiro na próxima
-          sala.indiceVez = vencedorJogada.jogadorIndex;
-          sala.primeiroDaRodadaAtual = vencedorJogada.jogadorIndex;
-        }
-
-        io.to(socket.nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
-        sala.jogadasRodadaAtual = [];
-        io.to(socket.nomeSala).emit('atualizarMesa', []);
-
-        const terminouMao = verificarFimMao(socket.nomeSala);
-        if (sala.emAndamento && !terminouMao) {
-          io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
-        }
-      }, 1500);
-    } else {
-      // Passa a vez para o próximo jogador dentro da mesma rodada
-      sala.indiceVez = (sala.indiceVez + 1) % sala.jogadores.length;
-      io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
-    }
+    executarJogadaCarta(sala, jogadorAtual, indiceCarta, esconder);
   });
 
   socket.on('pedirTruco', () => {
-    const sala = salas[socket.nomeSala];
-    if (!sala || !sala.emAndamento || sala.aguardandoMao11 || sala.trucoPendente) return;
+    let sala = salas[socket.nomeSala];
+    if (!sala || sala.isMaoDe11 || sala.maoDeFerro) return;
 
-    if (sala.pontos.A === 11 || sala.pontos.B === 11) {
-      const timeAdversario = socket.time === 'A' ? 'B' : 'A';
-      sala.trofeus[timeAdversario] += 1;
-      io.to(socket.nomeSala).emit('atualizarTrofeus', sala.trofeus);
-      io.to(socket.nomeSala).emit('fimDePartida', { vencedor: timeAdversario });
-      sala.pontos = { A: 0, B: 0 };
-      iniciarNovaMao(socket.nomeSala);
-      return;
-    }
+    let jogador = sala.jogadores.find(j => j.id === socket.id);
+    if (!jogador) return;
 
-    if (sala.ultimoPediuTime === socket.time) return;
+    if (sala.ultimoPediuTime === jogador.time) return;
 
     let proximoValor = 3;
     if (sala.valorMao === 3) proximoValor = 6;
     else if (sala.valorMao === 6) proximoValor = 9;
     else if (sala.valorMao === 9) proximoValor = 12;
 
-    if (sala.valorMao >= 12) return;
-
-    sala.trucoPendente = {
-      pediuTime: socket.time,
-      pediuApelido: socket.apelido,
+    sala.propostaTruco = {
+      pediuApelido: jogador.apelido,
+      pediuTime: jogador.time,
       valorProposto: proximoValor
     };
 
-    io.to(socket.nomeSala).emit('solicitacaoTruco', sala.trucoPendente);
+    if (sala.timerTurno) clearTimeout(sala.timerTurno);
+    io.to(sala.nome).emit('solicitacaoTruco', sala.propostaTruco);
   });
 
   socket.on('respostaTruco', ({ aceitou, aumentar }) => {
-    const sala = salas[socket.nomeSala];
-    if (!sala || !sala.trucoPendente || socket.time === sala.trucoPendente.pediuTime) return;
+    let sala = salas[socket.nomeSala];
+    if (!sala || !sala.propostaTruco) return;
 
-    const valorPropostoAtual = sala.trucoPendente.valorProposto;
-    const timeQuePediuAnterior = sala.trucoPendente.pediuTime;
+    let timeQuePediu = sala.propostaTruco.pediuTime;
+    let timeQueResponde = timeQuePediu === 'A' ? 'B' : 'A';
 
-    if (aumentar && valorPropostoAtual < 12) {
-      let proximoValor = 6;
-      if (valorPropostoAtual === 6) proximoValor = 9;
-      else if (valorPropostoAtual === 9) proximoValor = 12;
-
-      sala.valorMao = valorPropostoAtual;
-      sala.ultimoPediuTime = socket.time;
-
-      sala.trucoPendente = {
-        pediuTime: socket.time,
-        pediuApelido: socket.apelido,
-        valorProposto: proximoValor
-      };
-
-      io.to(socket.nomeSala).emit('solicitacaoTruco', sala.trucoPendente);
+    if (!aceitou) {
+      // Correr do truco entrega o valor da mão atual para o rival
+      finalizarMao(sala, timeQuePediu);
+      sala.propostaTruco = null;
       return;
     }
 
-    if (aceitou) {
-      sala.valorMao = valorPropostoAtual;
-      sala.ultimoPediuTime = timeQuePediuAnterior;
-      sala.trucoPendente = null;
+    sala.valorMao = sala.propostaTruco.valorProposto;
+    sala.ultimoPediuTime = timeQuePediu;
+    sala.propostaTruco = null;
 
-      io.to(socket.nomeSala).emit('atualizarEstadoTruco', {
-        valorMao: sala.valorMao,
-        ultimoPediuTime: sala.ultimoPediuTime,
-        bloqueado: false
-      });
+    io.to(sala.nome).emit('atualizarEstadoTruco', {
+      valorMao: sala.valorMao,
+      ultimoPediuTime: sala.ultimoPediuTime,
+      bloqueio: false
+    });
+
+    if (aumentar) {
+      // Auto-pedir o próximo nível se clicou em Aumentar
+      let jogador = sala.jogadores.find(j => j.id === socket.id);
+      let proximoValor = sala.valorMao === 3 ? 6 : (sala.valorMao === 6 ? 9 : 12);
+
+      sala.propostaTruco = {
+        pediuApelido: jogador.apelido,
+        pediuTime: jogador.time,
+        valorProposto: proximoValor
+      };
+      io.to(sala.nome).emit('solicitacaoTruco', sala.propostaTruco);
     } else {
-      sala.pontos[timeQuePediuAnterior] += sala.valorMao;
-      sala.trucoPendente = null;
+      iniciarTimerTurno(sala);
+    }
+  });
 
-      if (sala.pontos.A >= 12 || sala.pontos.B >= 12) {
-        const venceu = sala.pontos.A >= 12 ? 'A' : 'B';
-        sala.trofeus[venceu] += 1;
-        io.to(socket.nomeSala).emit('atualizarTrofeus', sala.trofeus);
-        io.to(socket.nomeSala).emit('fimDePartida', { vencedor: venceu });
-        sala.pontos = { A: 0, B: 0 };
-      }
+  socket.on('respostaMao11', (aceitou) => {
+    let sala = salas[socket.nomeSala];
+    if (!sala || !sala.isMaoDe11 || sala.mao11Decidida) return;
 
-      iniciarNovaMao(socket.nomeSala);
+    let jogador = sala.jogadores.find(j => j.id === socket.id);
+    if (!jogador || jogador.time !== sala.timeNaMao11) return;
+
+    sala.mao11Decidida = true;
+
+    if (aceitou) {
+      // Decidiu jogar: a mão vale 3 pontos
+      sala.valorMao = 3;
+      io.to(sala.nome).emit('atualizarEstadoTruco', { valorMao: 3, bloqueio: true });
+      iniciarTimerTurno(sala);
+    } else {
+      // Correu da Mão de 11: entrega 1 ponto ao adversário
+      sala.valorMao = 1;
+      let timeRival = sala.timeNaMao11 === 'A' ? 'B' : 'A';
+      finalizarMao(sala, timeRival);
     }
   });
 
   socket.on('destruirSalaForcado', () => {
-    if (socket.nomeSala && salas[socket.nomeSala]) {
-      io.to(socket.nomeSala).emit('salaDestruida', 'A sala foi encerrada.');
-      delete salas[socket.nomeSala];
+    let nomeSala = socket.nomeSala;
+    if (salas[nomeSala]) {
+      if (salas[nomeSala].timerTurno) clearTimeout(salas[nomeSala].timerTurno);
+      io.to(nomeSala).emit('salaDestruida', 'A sala foi destruída por um dos jogadores.');
+      delete salas[nomeSala];
     }
   });
 
   socket.on('disconnect', () => {
-    if (socket.nomeSala && salas[socket.nomeSala]) {
-      const sala = salas[socket.nomeSala];
-      const j = sala.jogadores.find(x => x.id === socket.id);
-      if (j) {
-        j.online = false;
-        socket.to(socket.nomeSala).emit('jogadorDesconectado', { apelido: j.apelido });
-      }
-      if (!sala.jogadores.some(x => x.online)) delete salas[socket.nomeSala];
+    let nomeSala = socket.nomeSala;
+    if (nomeSala && salas[nomeSala]) {
+      let sala = salas[nomeSala];
+      let jogadorSaindo = sala.jogadores.find(j => j.id === socket.id);
+      if (sala.timerTurno) clearTimeout(sala.timerTurno);
+
+      io.to(nomeSala).emit('jogadorDesconectado', {
+        apelido: jogadorSaindo ? jogadorSaindo.apelido : 'Um jogador'
+      });
+      delete salas[nomeSala];
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+server.listen(PORT, () => console.log(`Servidor a correr na porta ${PORT}`));
