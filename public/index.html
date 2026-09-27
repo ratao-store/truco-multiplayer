@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Truco Paulista</title>
+  <title>Truco De Bigode</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
   <div id="modal-regras" class="modal-overlay" style="display: none;">
     <div class="modal-card modal-regras-card">
       <button id="btn-fechar-regras" class="btn-fechar">&times;</button>
-      <h2>Regras do Truco Paulista</h2>
+      <h2>Regras do Truco De Bigode</h2>
       <div class="conteudo-regras">
         <h3>1. Objetivo e Baralho</h3>
         <p>Jogado com 40 cartas (sem 8, 9, 10 e Curingas). A partida termina quando uma dupla atinge <strong>12 pontos</strong>. Cada Mão é decidida em uma disputa de melhor de 3 rodadas.</p>
@@ -54,7 +54,7 @@
         <p>Pontos: 1 &rightarrow; 3 (Truco) &rightarrow; 6 &rightarrow; 9 &rightarrow; 12. A dupla que fez o último pedido não pode pedir o aumento seguinte.</p>
 
         <h3>5. Mão de 11 e Mão de Ferro</h3>
-        <p><strong>Mão de 11:</strong> Olhe as cartas da dupla e decida se joga (3 pts) ou corre (entrega 1 pt ao rival). <em>É proibido trucar na Mão de 11!</em></p>
+        <p><strong>Mão de 11:</strong> Olhe as cartas da dupla e decida se joga (valendo 3 pts) ou corre (entrega 1 pt ao rival). <em>É proibido trucar na Mão de 11!</em></p>
         <p><strong>Mão de Ferro (11x11):</strong> Todos jogam no escuro sem ver as próprias cartas.</p>
 
         <h3>6. Carta Coberta</h3>
@@ -71,7 +71,7 @@
       <p id="texto-modal-desconexao">Um jogador saiu ou perdeu a conexão.</p>
 
       <div class="botoes-modal-desconexao">
-        <button id="btn-confirmar-desconexao" class="btn-secondary">OK</button>
+        <button id="btn-confirmar-desconexao" class="btn-primary">OK</button>
       </div>
     </div>
   </div>
@@ -88,7 +88,7 @@
 
       <div class="form-group">
         <label>Nome da Sala:</label>
-        <input type="text" id="input-sala" placeholder="Informe o codigo da sala">
+        <input type="text" id="input-sala" placeholder="Informe o código da sala">
       </div>
 
       <button id="btn-entrar" class="btn-primary">Entrar na Sala</button>
@@ -96,7 +96,7 @@
     </div>
 
     <div class="card-login" id="card-criar" style="display: none;">
-      <h2>Criando sua propria sala</h2>
+      <h2>Criando sua própria sala</h2>
       
       <div class="form-group">
         <label>Seu Apelido:</label>
@@ -156,7 +156,11 @@
           </div>
         </div>
       </div>
-      <div id="status-vez" class="status">Aguardando...</div>
+      
+      <div class="status-container">
+        <div id="status-vez" class="status">Aguardando...</div>
+        <div id="timer-turn" class="timer-turn" style="display: none;">Tempo: <span id="tempo-restante">20</span>s</div>
+      </div>
     </header>
 
     <main>
