@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Truco De Bigode</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -63,15 +64,35 @@
     </div>
   </div>
 
+  <!-- MODAL HISTÓRICO DA MÃO (SÚMULA) -->
+  <div id="modal-sumula" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <button id="btn-fechar-sumula" class="btn-fechar">&times;</button>
+      <h2>📜 Súmula da Mão</h2>
+      <div id="conteudo-sumula" class="conteudo-sumula"></div>
+    </div>
+  </div>
+
+  <!-- MODAL QR CODE / CONVITELINK -->
+  <div id="modal-qrcode" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <button id="btn-fechar-qrcode" class="btn-fechar">&times;</button>
+      <h2>📱 Convite para a Sala</h2>
+      <div id="qrcode-container" style="display:flex; justify-content:center; margin: 15px 0;"></div>
+      <input type="text" id="input-link-convite" readonly style="width:100%; padding:8px; margin-bottom:10px; text-align:center;">
+      <button id="btn-copiar-link" class="btn-secondary">Copiar Link</button>
+    </div>
+  </div>
+
   <!-- MODAL DE DESCONEXÃO -->
   <div id="modal-desconexao" class="modal-overlay" style="display: none;">
     <div class="modal-card">
       <div class="modal-icone">⚠️</div>
       <h2 id="titulo-modal-desconexao">Jogador Desconectado!</h2>
-      <p id="texto-modal-desconexao">Um jogador saiu ou perdeu a conexão.</p>
+      <p id="texto-modal-desconexao">Aguardando o jogador reconectar (30s)...</p>
 
       <div class="botoes-modal-desconexao">
-        <button id="btn-confirmar-desconexao" class="btn-primary">OK</button>
+        <button id="btn-confirmar-desconexao" class="btn-primary">OK / Sair</button>
       </div>
     </div>
   </div>
@@ -84,6 +105,17 @@
       <div class="form-group">
         <label>Seu Apelido:</label>
         <input type="text" id="input-apelido" placeholder="Informe um apelido">
+      </div>
+
+      <div class="form-group">
+        <label>Selecione seu Bigode (Avatar):</label>
+        <select id="select-avatar-login">
+          <option value="🥸">🥸 Clássico</option>
+          <option value="🧔">🧔 Faroeste</option>
+          <option value="👨‍🦱">👨‍🦱 Respeito</option>
+          <option value="🕵️">🕵️ Elegante</option>
+          <option value="🧙‍♂️">🧙‍♂️ Mágico</option>
+        </select>
       </div>
 
       <div class="form-group">
@@ -101,6 +133,17 @@
       <div class="form-group">
         <label>Seu Apelido:</label>
         <input type="text" id="input-criar-apelido" placeholder="Informe seu apelido">
+      </div>
+
+      <div class="form-group">
+        <label>Selecione seu Bigode (Avatar):</label>
+        <select id="select-avatar-criar">
+          <option value="🥸">🥸 Clássico</option>
+          <option value="🧔">🧔 Faroeste</option>
+          <option value="👨‍🦱">👨‍🦱 Respeito</option>
+          <option value="🕵️">🕵️ Elegante</option>
+          <option value="🧙‍♂️">🧙‍♂️ Mágico</option>
+        </select>
       </div>
 
       <div class="form-group">
@@ -128,7 +171,20 @@
         <div class="info-sala">
           Sala: <span id="label-nome-sala"></span> | Valendo: <span id="label-valor-mao" class="destaque">1</span> Pt(s)
         </div>
-        <button id="btn-abrir-regras" class="btn-regras">📖 Regras</button>
+        <div class="header-botoes">
+          <button id="btn-abrir-qrcode" class="btn-regras">📱 Convite</button>
+          <button id="btn-abrir-sumula" class="btn-regras">📜 Súmula</button>
+
+          <select id="select-tema-mesa" class="select-tema">
+            <option value="tema-verde">🌿 Feltro Verde</option>
+            <option value="tema-neon">🌆 Noite Neon</option>
+
+            <option value="tema-faroeste">🌵 Velho Oeste</option>
+
+            <option value="tema-boteco">🍺 Boteco</option>
+          </select>
+          <button id="btn-abrir-regras" class="btn-regras">📖 Regras</button>
+        </div>
       </div>
 
       <div class="placar">
@@ -159,11 +215,13 @@
       
       <div class="status-container">
         <div id="status-vez" class="status">Aguardando...</div>
+        <button id="btn-adicionar-bot" class="btn-secondary" style="display:none; width:auto; padding:4px 10px; margin:0;">🤖 Adicionar Bot</button>
         <div id="timer-turn" class="timer-turn" style="display: none;">Tempo: <span id="tempo-restante">20</span>s</div>
       </div>
     </header>
 
-    <main>
+    <main id="main-mesa">
+      <div id="container-reacoes-mesa" class="container-reacoes-flutuantes"></div>
       <div class="mesa">
         <div class="area-vira">
           <p>VIRA</p>
@@ -178,6 +236,15 @@
     </main>
 
     <footer>
+      <!-- PAINEL DE REAÇÕES / EMOJIS -->
+      <div class="painel-reacoes">
+        <button class="btn-emoji" data-emoji="🥸">🥸</button>
+        <button class="btn-emoji" data-emoji="🔥">🔥</button>
+        <button class="btn-emoji" data-emoji="😂">😂</button>
+        <button class="btn-emoji" data-emoji="😡">😡</button>
+        <button class="btn-emoji" data-emoji="💩">💩</button>
+      </div>
+
       <!-- POPUP MÃO DE 11 -->
       <div id="modal-mao11" class="modal-truco" style="display: none;">
         <p>Seu time está na Mão de 11! Analisem suas cartas.</p>
@@ -208,6 +275,15 @@
 
       <p id="meu-info">Conectando...</p>
       <div id="minhas-cartas" class="cartas-container"></div>
+
+      <!-- PAINEL DE CHAT EMBUTIDO -->
+      <div id="box-chat" class="box-chat">
+        <div id="mensagens-chat" class="mensagens-chat"></div>
+        <div class="input-chat-group">
+          <input type="text" id="input-msg-chat" placeholder="Enviar mensagem...">
+          <button id="btn-enviar-chat">Enviar</button>
+        </div>
+      </div>
     </footer>
   </div>
 
