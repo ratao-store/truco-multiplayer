@@ -14,7 +14,7 @@ body {
   min-height: 100vh;
 }
 
-/* LOGIN */
+/* CARDS DE LOGIN */
 #login-container {
   width: 100%;
   max-width: 380px;
@@ -22,7 +22,7 @@ body {
 }
 
 .card-login {
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.8);
   padding: 25px;
   border-radius: 12px;
   text-align: center;
@@ -66,11 +66,21 @@ body {
   margin-top: 10px;
 }
 
-.btn-primary:hover {
-  background: #1b5e20;
+.btn-primary:hover { background: #1b5e20; }
+
+.btn-secondary {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  color: #ffeb3b;
+  border: 1px solid #ffeb3b;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 10px;
 }
 
-/* TELA DO JOGO */
+/* JOGO */
 #app {
   width: 100%;
   max-width: 500px;
@@ -82,16 +92,22 @@ body {
 }
 
 header {
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   padding: 12px;
   border-radius: 10px;
   text-align: center;
 }
 
 .info-sala {
-  font-size: 12px;
-  color: #ffeb3b;
+  font-size: 13px;
+  color: #ddd;
   margin-bottom: 5px;
+}
+
+.destaque {
+  color: #ffeb3b;
+  font-weight: bold;
+  font-size: 15px;
 }
 
 .placar {
@@ -107,6 +123,12 @@ header {
   align-items: center;
 }
 
+.trofeus {
+  font-size: 13px;
+  color: #ffd700;
+  font-weight: bold;
+}
+
 .nomes {
   font-size: 13px;
   color: #fff;
@@ -119,7 +141,6 @@ header {
   font-size: 26px;
   font-weight: bold;
   color: #ffeb3b;
-  margin-top: 2px;
 }
 
 .status {
@@ -161,27 +182,71 @@ header {
   font-weight: bold;
   box-shadow: 0 4px 6px rgba(0,0,0,0.3);
   cursor: pointer;
-  user-select: none;
 }
 
-.carta.vermelho {
-  color: red;
-}
-
-.carta.vira {
-  background: #fff8e1;
-  border: 2px solid #ffa000;
-}
+.carta.vermelho { color: red; }
+.carta.vira { background: #fff8e1; border: 2px solid #ffa000; }
 
 footer {
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   padding: 12px;
   border-radius: 10px;
   text-align: center;
 }
 
+/* BOTOES E MODAL DO TRUCO */
+.controles-jogador {
+  margin-bottom: 8px;
+}
+
+.btn-truco-action {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 5px rgba(0,0,0,0.4);
+}
+
+.btn-truco-action:hover { background: #b71c1c; }
+
+.modal-truco {
+  background: #212121;
+  border: 2px solid #ffeb3b;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.modal-truco p {
+  color: #ffeb3b;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.botoes-truco {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.botoes-truco button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-aceitar { background: #388e3c; color: white; }
+.btn-aumentar { background: #f57c00; color: white; }
+.btn-correr { background: #d32f2f; color: white; }
+
 #meu-info {
   margin-bottom: 8px;
-  font-size: 14px;
+  font-size: 13px;
   color: #ffeb3b;
 }
