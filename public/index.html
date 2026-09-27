@@ -8,6 +8,15 @@
 </head>
 <body>
 
+  <!-- EFEITO ZAP / IMPACTO TELA QUEBRADA -->
+  <div id="overlay-zap" class="overlay-zap" style="display: none;">
+    <div class="vidro-quebrado"></div>
+    <div class="container-zap-animado">
+      <h1 id="texto-efeito-zap">ZAP!</h1>
+      <div id="carta-zap-grande" class="carta-grande">♣</div>
+    </div>
+  </div>
+
   <!-- TELA PRINCIPAL (LOGIN / ENTRAR NA SALA) -->
   <div id="login-container">
     <div class="card-login" id="card-entrar">
@@ -65,12 +74,24 @@
           <div id="trofeus-a" class="trofeus">🏆 0</div>
           <div id="nome-time-a" class="nomes">Time A</div>
           <div id="pontos-a" class="pts">0</div>
+          <div class="bolinhas-rodada" id="bolinhas-a">
+            <span class="bolinha"></span>
+            <span class="bolinha"></span>
+            <span class="bolinha"></span>
+          </div>
         </div>
+
         <div class="vs">VS</div>
+
         <div class="time time-b">
           <div id="trofeus-b" class="trofeus">🏆 0</div>
           <div id="nome-time-b" class="nomes">Time B</div>
           <div id="pontos-b" class="pts">0</div>
+          <div class="bolinhas-rodada" id="bolinhas-b">
+            <span class="bolinha"></span>
+            <span class="bolinha"></span>
+            <span class="bolinha"></span>
+          </div>
         </div>
       </div>
       <div id="status-vez" class="status">Aguardando...</div>
