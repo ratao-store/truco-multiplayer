@@ -1,188 +1,333 @@
 const socket = io();
 
-let meuApelido = '';
-let meuTime = '';
-let minhasCartasData = [];
-let cartaSelecionadaIndex = null;
-
-const telaLogin = document.getElementById('tela-login');
-const telaJogo = document.getElementById('tela-jogo');
+// Login
+const cardEntrar = document.getElementById('card-entrar');
+const cardCriar = document.getElementById('card-criar');
+const btnAbrirCriar = document.getElementById('btn-abrir-criar');
+const btnVoltarEntrar = document.getElementById('btn-voltar-entrar');
 const btnEntrar = document.getElementById('btn-entrar');
-const btnCriar = document.getElementById('btn-criar');
-const inputApelido = document.getElementById('input-apelido');
-const inputSala = document.getElementById('input-sala');
-const selectMaxJogadores = document.getElementById('select-max-jogadores');
+const btnConfirmarCriar = document.getElementById('btn-confirmar-criar');
 
-const cartasContainer = document.getElementById('minhas-cartas');
-const cartasMesaContainer = document.getElementById('cartas-mesa');
-const cartaViraContainer = document.getElementById('carta-vira');
-const monteBaralho = document.getElementById('monte-baralho');
-const areaJogada = document.getElementById('area-jogada');
+// App & Regras
+const loginContainer = document.getElementById('login-container');
+const appContainer = document.getElementById('app');
+const modalRegras = document.getElementById('modal-regras');
+const btnAbrirRegras = document.getElementById('btn-abrir-regras');
+const btnFecharRegras = document.getElementById('btn-fechar-regras');
 
-const statusVez = document.getElementById('status-vez');
-const statusValorMao = document.getElementById('status-valor-mao');
-const overlayEmbaralhando = document.getElementById('overlay-embaralhando');
-
-const btnTruco = document.getElementById('btn-truco');
+// Truco Controles
+const btnPedirTruco = document.getElementById('btn-pedir-truco');
 const modalTruco = document.getElementById('modal-truco');
-const textoTruco = document.getElementById('texto-truco');
+const textoTrucoPedido = document.getElementById('texto-truco-pedido');
 const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
 const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
 const btnCorrerTruco = document.getElementById('btn-correr-truco');
 
-btnEntrar.addEventListener('click', () => {
-  meuApelido = inputApelido.value.trim();
-  const nomeSala = inputSala.value.trim();
-  if (meuApelido && nomeSala) {
-    socket.emit('entrarSala', { apelido: meuApelido, nomeSala });
-  }
-});
+// Mão de 11 Controles
+const modalMao11 = document.getElementById('modal-mao11');
+const btnAceitarMao11 = document.getElementById('btn-aceitar-mao11');
+const btnCorrerMao11 = document.getElementById('btn-correr-mao11');
 
-btnCriar.addEventListener('click', () => {
-  meuApelido = inputApelido.value.trim();
-  const nomeSala = inputSala.value.trim();
-  const maxJogadores = selectMaxJogadores.value;
-  if (meuApelido && nomeSala) {
-    socket.emit('criarSala', { apelido: meuApelido, nomeSala, maxJogadores });
-  }
-});
+// Esconder Carta (Virada)
+const containerEsconderCarta = document.getElementById('container-esconder-carta');
+const chkEsconderCarta = document.getElementById('chk-esconder-carta');
 
-socket.on('sucessoEntrada', (dados) => {
-  meuApelido = dados.apelido;
-  meuTime = dados.time;
-  telaLogin.classList.add('hidden');
-  telaJogo.classList.remove('hidden');
-  document.getElementById('label-sala').innerText = `Sala: ${dados.nomeSala}`;
-});
+// Overlays
+const overlayZap = document.getElementById('overlay-zap');
+const textoEfeitoZap = document.getElementById('texto-efeito-zap');
+const cartaZapGrande = document.getElementById('carta-zap-grande');
+const overlayEmbaralhar = document.getElementById('overlay-embaralhar');
+
+// Modal Desconexão
+const modalDesconexao = document.getElementById('modal-desconexao');
+const textoModalDesconexao = document.getElementById('texto-modal-desconexao');
+const btnConfirmarDesconexao = document.getElementById('btn-confirmar-desconexao');
+const btnAguardarReconexao = document.getElementById('btn-aguardar-reconexao');
+
+let meuApelido = '';
+let meuTime = '';
+let valorMaoAtual = 1;
+let numRodadaAtual = 1;
+
+// Alternância do Modal de Regras
+btnAbrirRegras.onclick = () => modalRegras.style.display = 'flex';
+btnFecharRegras.onclick = () => modalRegras.style.display = 'none';
+
+// Navegação do Login
+btnAbrirCriar.onclick = () => { cardEntrar.style.display = 'none'; cardCriar.style.display = 'block'; };
+btnVoltarEntrar.onclick = () => { cardCriar.style.display = 'none'; cardEntrar.style.display = 'block'; };
+
+btnEntrar.onclick = () => {
+  const apelido = document.getElementById('input-apelido').value.trim();
+  const nomeSala = document.getElementById('input-sala').value.trim();
+  if (!apelido || !nomeSala) return alert('Preencha apelido e sala!');
+  socket.emit('entrarSala', { apelido, nomeSala });
+};
+
+btnConfirmarCriar.onclick = () => {
+  const apelido = document.getElementById('input-criar-apelido').value.trim();
+  const nomeSala = document.getElementById('input-criar-sala').value.trim();
+  const maxJogadores = document.getElementById('select-max-jogadores').value;
+  if (!apelido || !nomeSala) return alert('Preencha apelido e nome da sala!');
+  socket.emit('criarSala', { apelido, nomeSala, maxJogadores });
+};
 
 socket.on('erroEntrada', (msg) => alert(msg));
 
-// Receber Cartas e Embaralhar por 3.5 segundos
-socket.on('minhasCartas', (dados) => {
-  minhasCartasData = dados.cartas;
-  cartaSelecionadaIndex = null;
-  atualizarIndicadoresAlvo();
-
-  overlayEmbaralhando.classList.remove('hidden');
-  setTimeout(() => {
-    overlayEmbaralhando.classList.add('hidden');
-    renderizarMinhasCartas();
-  }, 3500);
+socket.on('sucessoEntrada', (data) => {
+  meuApelido = data.apelido;
+  meuTime = data.time;
+  modalDesconexao.style.display = 'none';
+  loginContainer.style.display = 'none';
+  appContainer.style.display = 'flex';
+  document.getElementById('label-nome-sala').innerText = data.nomeSala;
+  document.getElementById('meu-info').innerText = `${meuApelido} (Time ${meuTime})`;
 });
 
-function renderizarMinhasCartas() {
-  cartasContainer.innerHTML = '';
-  minhasCartasData.forEach((carta, index) => {
-    const el = document.createElement('div');
-    const isVermelho = carta.naipe === '♥' || carta.naipe === '♦';
-    el.className = `carta ${isVermelho ? 'vermelho' : ''} ${cartaSelecionadaIndex === index ? 'selecionada' : ''}`;
-    el.innerHTML = `<div>${carta.valor}</div><div>${carta.naipe}</div>`;
-    
-    // Selecionar / Desselecionar a carta
-    el.addEventListener('click', () => {
-      if (cartaSelecionadaIndex === index) {
-        cartaSelecionadaIndex = null;
-      } else {
-        cartaSelecionadaIndex = index;
-      }
-      renderizarMinhasCartas();
-      atualizarIndicadoresAlvo();
-    });
-
-    cartasContainer.appendChild(el);
-  });
-}
-
-function atualizarIndicadoresAlvo() {
-  if (cartaSelecionadaIndex !== null) {
-    areaJogada.classList.add('aguardando-alvo');
-    monteBaralho.classList.add('aguardando-alvo');
-  } else {
-    areaJogada.classList.remove('aguardando-alvo');
-    monteBaralho.classList.remove('aguardando-alvo');
-  }
-}
-
-// Clicou na Mesa -> Jogar ABERTA
-areaJogada.addEventListener('click', () => {
-  if (cartaSelecionadaIndex !== null) {
-    socket.emit('jogarCarta', { indiceCarta: cartaSelecionadaIndex, esconder: false });
-    cartaSelecionadaIndex = null;
-    atualizarIndicadoresAlvo();
-  }
+socket.on('atualizarJogadores', (jogadores) => {
+  const timeA = jogadores.filter(j => j.time === 'A').map(j => j.apelido).join(' & ');
+  const timeB = jogadores.filter(j => j.time === 'B').map(j => j.apelido).join(' & ');
+  document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
+  document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
 });
 
-// Clicou no Baralho -> Jogar ESCONDIDA
-monteBaralho.addEventListener('click', () => {
-  if (cartaSelecionadaIndex !== null) {
-    socket.emit('jogarCarta', { indiceCarta: cartaSelecionadaIndex, esconder: true });
-    cartaSelecionadaIndex = null;
-    atualizarIndicadoresAlvo();
-  }
+socket.on('atualizarTrofeus', (data) => {
+  document.getElementById('trofeus-a').innerText = `🏆 ${data.a}`;
+  document.getElementById('trofeus-b').innerText = `🏆 ${data.b}`;
 });
 
-// Atualização da Mesa
-socket.on('atualizarMesa', (jogadas) => {
-  cartasMesaContainer.innerHTML = '';
-  jogadas.forEach(j => {
-    const el = document.createElement('div');
-    if (j.escondida) {
-      el.className = 'carta escondida';
-      el.innerHTML = `<div class="verso-copag"></div>`;
+// Ações de Pedir Truco
+btnPedirTruco.onclick = () => socket.emit('pedirTruco');
+
+socket.on('solicitacaoTruco', (data) => {
+  if (data.pediuTime !== meuTime) {
+    modalTruco.style.display = 'block';
+    let rotulo = 'TRUCO!';
+    if (data.valorProposto === 6) rotulo = 'SEIS!';
+    if (data.valorProposto === 9) rotulo = 'NOVE!';
+    if (data.valorProposto === 12) rotulo = '12!';
+
+    textoTrucoPedido.innerText = `${data.pediuApelido} pediu ${rotulo}`;
+    btnAceitarTruco.innerText = `Aceitar (${data.valorProposto} pts)`;
+
+    if (data.valorProposto >= 12) {
+      btnAumentarTruco.style.display = 'none';
     } else {
-      const isVermelho = j.carta.naipe === '♥' || j.carta.naipe === '♦';
-      el.className = `carta ${isVermelho ? 'vermelho' : ''}`;
-      el.innerHTML = `<div>${j.carta.valor}</div><div>${j.carta.naipe}</div>`;
+      btnAumentarTruco.style.display = 'inline-block';
+      let prox = 'Pedir 6';
+      if (data.valorProposto === 6) prox = 'Pedir 9';
+      if (data.valorProposto === 9) prox = 'Pedir 12';
+      btnAumentarTruco.innerText = prox;
     }
-    cartasMesaContainer.appendChild(el);
-  });
-});
-
-socket.on('novaMao', (dados) => {
-  const isVermelho = dados.vira.naipe === '♥' || dados.vira.naipe === '♦';
-  cartaViraContainer.className = `carta vira ${isVermelho ? 'vermelho' : ''}`;
-  cartaViraContainer.innerHTML = `<div>${dados.vira.valor}</div><div>${dados.vira.naipe}</div>`;
-  
-  statusVez.innerText = `Vez de: ${dados.vez}`;
-  document.getElementById('placar-A').innerText = `Nós: ${dados.pontosA}`;
-  document.getElementById('placar-B').innerText = `Eles: ${dados.pontosB}`;
-});
-
-socket.on('atualizarVez', (apelidoVez) => {
-  statusVez.innerText = `Vez de: ${apelidoVez}`;
-});
-
-btnTruco.addEventListener('click', () => socket.emit('pedirTruco'));
-
-socket.on('solicitacaoTruco', (dados) => {
-  if (dados.pediuTime !== meuTime) {
-    textoTruco.innerText = `${dados.pediuApelido} pediu ${dados.valorProposto}!`;
-    modalTruco.classList.remove('hidden');
+  } else {
+    document.getElementById('status-vez').innerText = `Aguardando resposta do adversário (${data.valorProposto} pts)...`;
   }
 });
 
-btnAceitarTruco.addEventListener('click', () => {
+btnAceitarTruco.onclick = () => {
+  modalTruco.style.display = 'none';
   socket.emit('respostaTruco', { aceitou: true, aumentar: false });
-  modalTruco.classList.add('hidden');
-});
+};
 
-btnAumentarTruco.addEventListener('click', () => {
-  socket.emit('respostaTruco', { aceitou: true, aumentar: true });
-  modalTruco.classList.add('hidden');
-});
-
-btnCorrerTruco.addEventListener('click', () => {
+btnCorrerTruco.onclick = () => {
+  modalTruco.style.display = 'none';
   socket.emit('respostaTruco', { aceitou: false, aumentar: false });
-  modalTruco.classList.add('hidden');
+};
+
+btnAumentarTruco.onclick = () => {
+  modalTruco.style.display = 'none';
+  socket.emit('respostaTruco', { aceitou: true, aumentar: true });
+};
+
+// Alternância e Controle Visual do Botão
+socket.on('atualizarEstadoTruco', (data) => {
+  valorMaoAtual = data.valorMao;
+  document.getElementById('label-valor-mao').innerText = valorMaoAtual;
+
+  // Só pode pedir aumento se NÃO FOI seu time quem pediu por último
+  const podeAumentar = (data.ultimoPediuTime !== meuTime) && !data.bloqueado && valorMaoAtual < 12;
+
+  if (podeAumentar) {
+    btnPedirTruco.style.display = 'inline-block';
+    if (valorMaoAtual === 1) btnPedirTruco.innerText = 'TRUCO!';
+    else if (valorMaoAtual === 3) btnPedirTruco.innerText = 'SEIS!';
+    else if (valorMaoAtual === 6) btnPedirTruco.innerText = 'NOVE!';
+    else if (valorMaoAtual === 9) btnPedirTruco.innerText = '12!';
+  } else {
+    btnPedirTruco.style.display = 'none';
+  }
 });
 
-socket.on('atualizarEstadoTruco', (dados) => {
-  statusValorMao.innerText = `Valendo: ${dados.valorMao} ponto(s)`;
+// Decisão Mão de 11
+btnAceitarMao11.onclick = () => {
+  modalMao11.style.display = 'none';
+  socket.emit('respostaMao11', true);
+};
+
+btnCorrerMao11.onclick = () => {
+  modalMao11.style.display = 'none';
+  socket.emit('respostaMao11', false);
+};
+
+socket.on('decisaoMao11Pendente', (data) => {
+  if (data.timeNaMao11 === meuTime) {
+    modalMao11.style.display = 'block';
+  } else {
+    document.getElementById('status-vez').innerText = `Aguardando o Time ${data.timeNaMao11} decidir a Mão de 11...`;
+  }
 });
 
-socket.on('atualizarTrofeus', (trofeus) => {
-  document.getElementById('trofeus-A').innerText = `🏆 Nós: ${trofeus.A}`;
-  document.getElementById('trofeus-B').innerText = `🏆 Eles: ${trofeus.B}`;
+function atualizarBolinhas(historicoRodadas) {
+  const bolinhasA = document.querySelectorAll('#bolinhas-a .bolinha');
+  const bolinhasB = document.querySelectorAll('#bolinhas-b .bolinha');
+
+  bolinhasA.forEach(b => b.className = 'bolinha');
+  bolinhasB.forEach(b => b.className = 'bolinha');
+
+  historicoRodadas.forEach((res, idx) => {
+    if (idx >= 3) return;
+    if (res === 'A') {
+      bolinhasA[idx].classList.add('vitoria');
+      bolinhasB[idx].classList.add('derrota');
+    } else if (res === 'B') {
+      bolinhasB[idx].classList.add('vitoria');
+      bolinhasA[idx].classList.add('derrota');
+    } else if (res === 'Empate') {
+      bolinhasA[idx].classList.add('empate');
+      bolinhasB[idx].classList.add('empate');
+    }
+  });
+}
+
+socket.on('novaMao', (data) => {
+  overlayEmbaralhar.style.display = 'flex';
+
+  setTimeout(() => {
+    overlayEmbaralhar.style.display = 'none';
+    valorMaoAtual = data.valorMao;
+    numRodadaAtual = 1;
+    chkEsconderCarta.checked = false;
+    containerEsconderCarta.style.display = 'none';
+
+    document.getElementById('label-valor-mao').innerText = valorMaoAtual;
+    document.getElementById('pontos-a').innerText = data.pontosA;
+    document.getElementById('pontos-b').innerText = data.pontosB;
+    document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
+    document.getElementById('label-manilha').innerText = `Manilha: ${data.valorManilha || '-'}`;
+
+    modalTruco.style.display = 'none';
+    modalMao11.style.display = 'none';
+
+    if (data.isMaoDe11 || data.maoDeFerro) {
+      btnPedirTruco.style.display = 'none';
+    } else {
+      btnPedirTruco.style.display = 'inline-block';
+      btnPedirTruco.innerText = 'TRUCO!';
+    }
+
+    atualizarBolinhas([]);
+
+    const viraEl = document.getElementById('carta-vira');
+    if (data.maoDeFerro) {
+      viraEl.innerText = '🂠';
+      viraEl.className = 'carta vira escuro';
+    } else {
+      viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
+      viraEl.className = 'carta vira' + (data.vira.naipe === '♦' || data.vira.naipe === '♥' ? ' vermelho' : '');
+    }
+  }, 1200);
 });
 
-document.getElementById('btn-sair').addEventListener('click', () => location.reload());
+socket.on('atualizarRodadasMao', (historicoRodadas) => {
+  atualizarBolinhas(historicoRodadas);
+  numRodadaAtual = historicoRodadas.length + 1;
+
+  if (numRodadaAtual >= 2) {
+    containerEsconderCarta.style.display = 'inline-block';
+  } else {
+    containerEsconderCarta.style.display = 'none';
+  }
+});
+
+socket.on('minhasCartas', (data) => {
+  const container = document.getElementById('minhas-cartas');
+  container.innerHTML = '';
+
+  data.cartas.forEach((c, idx) => {
+    const cardEl = document.createElement('div');
+    if (data.noEscuro) {
+      cardEl.className = 'carta escuro';
+      cardEl.innerText = '🂠';
+    } else {
+      cardEl.className = 'carta' + (c.naipe === '♦' || c.naipe === '♥' ? ' vermelho' : '');
+      cardEl.innerText = `${c.valor}${c.naipe}`;
+    }
+
+    cardEl.onclick = () => {
+      const esconder = chkEsconderCarta.checked && numRodadaAtual >= 2;
+      socket.emit('jogarCarta', { indiceCarta: idx, esconder });
+      chkEsconderCarta.checked = false;
+    };
+
+    container.appendChild(cardEl);
+  });
+});
+
+socket.on('atualizarMesa', (cartasMesa) => {
+  const container = document.getElementById('cartas-mesa');
+  container.innerHTML = '';
+
+  cartasMesa.forEach(item => {
+    const cardEl = document.createElement('div');
+    if (item.escondida) {
+      cardEl.className = 'carta escuro';
+      cardEl.innerText = '🂠';
+    } else {
+      cardEl.className = 'carta' + (item.carta.naipe === '♦' || item.carta.naipe === '♥' ? ' vermelho' : '');
+      cardEl.innerText = `${item.carta.valor}${item.carta.naipe}`;
+    }
+    container.appendChild(cardEl);
+  });
+});
+
+socket.on('efeitoManilhaZap', (data) => {
+  textoEfeitoZap.innerText = data.isZap ? '💥 ZAP! 💥' : 'MANILHA!';
+  cartaZapGrande.innerText = `${data.carta.valor}${data.carta.naipe}`;
+  if (data.carta.naipe === '♦' || data.carta.naipe === '♥') cartaZapGrande.classList.add('vermelho');
+  else cartaZapGrande.classList.remove('vermelho');
+
+  overlayZap.style.display = 'flex';
+  setTimeout(() => overlayZap.style.display = 'none', 1600);
+});
+
+socket.on('jogadorDesconectado', (data) => {
+  textoModalDesconexao.innerText = `O jogador (${data.apelido}) caiu da sala.`;
+  modalDesconexao.style.display = 'flex';
+});
+
+btnAguardarReconexao.onclick = () => {
+  modalDesconexao.style.display = 'none';
+  document.getElementById('status-vez').innerText = '⏳ Aguardando reconexão...';
+};
+
+btnConfirmarDesconexao.onclick = () => {
+  socket.emit('destruirSalaForcado');
+  modalDesconexao.style.display = 'none';
+  appContainer.style.display = 'none';
+  loginContainer.style.display = 'block';
+};
+
+socket.on('salaDestruida', (msg) => {
+  alert(msg || 'A sala foi encerrada.');
+  modalDesconexao.style.display = 'none';
+  appContainer.style.display = 'none';
+  loginContainer.style.display = 'block';
+});
+
+socket.on('atualizarVez', (apelido) => {
+  document.getElementById('status-vez').innerText = apelido.includes('Aguardando') ? apelido : `Vez de: ${apelido}`;
+});
+
+socket.on('fimDePartida', (data) => {
+  alert(`🏆 Fim de partida! Vencedor: Time ${data.vencedor}`);
+});
