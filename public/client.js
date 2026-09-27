@@ -5,7 +5,6 @@ let meuTime = '';
 let minhasCartasData = [];
 let cartaSelecionadaIndex = null;
 
-// Elementos da DOM
 const telaLogin = document.getElementById('tela-login');
 const telaJogo = document.getElementById('tela-jogo');
 const btnEntrar = document.getElementById('btn-entrar');
@@ -31,7 +30,6 @@ const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
 const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
 const btnCorrerTruco = document.getElementById('btn-correr-truco');
 
-// Eventos de Entrada
 btnEntrar.addEventListener('click', () => {
   meuApelido = inputApelido.value.trim();
   const nomeSala = inputSala.value.trim();
@@ -59,7 +57,7 @@ socket.on('sucessoEntrada', (dados) => {
 
 socket.on('erroEntrada', (msg) => alert(msg));
 
-// Receber Cartas e Exibir Embaralhamento mais longo (3.5 segundos)
+// Receber Cartas e Embaralhar por 3.5 segundos
 socket.on('minhasCartas', (dados) => {
   minhasCartasData = dados.cartas;
   cartaSelecionadaIndex = null;
@@ -80,9 +78,10 @@ function renderizarMinhasCartas() {
     el.className = `carta ${isVermelho ? 'vermelho' : ''} ${cartaSelecionadaIndex === index ? 'selecionada' : ''}`;
     el.innerHTML = `<div>${carta.valor}</div><div>${carta.naipe}</div>`;
     
+    // Selecionar / Desselecionar a carta
     el.addEventListener('click', () => {
       if (cartaSelecionadaIndex === index) {
-        cartaSelecionadaIndex = null; // Desselecionar se clicar novamente
+        cartaSelecionadaIndex = null;
       } else {
         cartaSelecionadaIndex = index;
       }
@@ -104,7 +103,7 @@ function atualizarIndicadoresAlvo() {
   }
 }
 
-// Clique na mesa -> Jogar carta aberta
+// Clicou na Mesa -> Jogar ABERTA
 areaJogada.addEventListener('click', () => {
   if (cartaSelecionadaIndex !== null) {
     socket.emit('jogarCarta', { indiceCarta: cartaSelecionadaIndex, esconder: false });
@@ -113,7 +112,7 @@ areaJogada.addEventListener('click', () => {
   }
 });
 
-// Clique no baralho -> Jogar carta escondida
+// Clicou no Baralho -> Jogar ESCONDIDA
 monteBaralho.addEventListener('click', () => {
   if (cartaSelecionadaIndex !== null) {
     socket.emit('jogarCarta', { indiceCarta: cartaSelecionadaIndex, esconder: true });
@@ -122,7 +121,7 @@ monteBaralho.addEventListener('click', () => {
   }
 });
 
-// Atualização de Mesa
+// Atualização da Mesa
 socket.on('atualizarMesa', (jogadas) => {
   cartasMesaContainer.innerHTML = '';
   jogadas.forEach(j => {
@@ -153,7 +152,6 @@ socket.on('atualizarVez', (apelidoVez) => {
   statusVez.innerText = `Vez de: ${apelidoVez}`;
 });
 
-// Atualizar Truco
 btnTruco.addEventListener('click', () => socket.emit('pedirTruco'));
 
 socket.on('solicitacaoTruco', (dados) => {
