@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Truco De Bigode</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -15,6 +15,14 @@
     <div class="container-zap-animado">
       <h1 id="texto-efeito-zap">ZAP!</h1>
       <div id="carta-zap-grande" class="carta-grande">♣</div>
+    </div>
+  </div>
+
+  <!-- OVERLAY DE CONTAGEM REGRESSIVA (5 SECONDS) -->
+  <div id="overlay-contagem" class="overlay-embaralhar" style="display: none;">
+    <div class="container-embaralhar">
+      <h2>A partida vai começar em:</h2>
+      <h1 id="numero-contagem" class="numero-contagem">5</h1>
     </div>
   </div>
 
@@ -37,39 +45,11 @@
       <h2>Regras do Truco De Bigode</h2>
       <div class="conteudo-regras">
         <h3>1. Objetivo e Baralho</h3>
-        <p>Jogado com 40 cartas (sem 8, 9, 10 e Curingas). A partida termina quando uma dupla atinge <strong>12 pontos</strong>. Cada Mão é decidida em uma disputa de melhor de 3 rodadas.</p>
-
+        <p>Jogado com 40 cartas (sem 8, 9, 10 e Curingas). A partida termina quando uma dupla atinge <strong>12 pontos</strong>.</p>
         <h3>2. Hierarquia e Manilhas</h3>
         <p><strong>Cartas comuns:</strong> 4 &lt; 5 &lt; 6 &lt; 7 &lt; Q &lt; J &lt; K &lt; A &lt; 2 &lt; 3</p>
-        <p>A <strong>Manilha</strong> é a carta imediatamente superior ao Vira. O desempate entre manilhas segue os naipes:</p>
-        <p><strong>1º Zap (♣) &gt; 2º Copas (♥) &gt; 3º Espadilha (♠) &gt; 4º Ouros (♦)</strong></p>
-
-        <h3>3. Empates (Canga)</h3>
-        <ul>
-          <li>Empate na 1ª: quem vencer a 2ª ganha a Mão.</li>
-          <li>Empate na 2ª ou 3ª: quem venceu a 1ª ganha a Mão.</li>
-          <li>Empate em todas: ninguém pontua.</li>
-        </ul>
-
-        <h3>4. Sistema de Pontos</h3>
-        <p>Pontos: 1 &rightarrow; 3 (Truco) &rightarrow; 6 &rightarrow; 9 &rightarrow; 12. A dupla que fez o último pedido não pode pedir o aumento seguinte.</p>
-
-        <h3>5. Mão de 11 e Mão de Ferro</h3>
-        <p><strong>Mão de 11:</strong> Olhe as cartas da dupla e decida se joga (valendo 3 pts) ou corre (entrega 1 pt ao rival). <em>É proibido trucar na Mão de 11!</em></p>
-        <p><strong>Mão de Ferro (11x11):</strong> Todos jogam no escuro sem ver as próprias cartas.</p>
-
-        <h3>6. Carta Coberta</h3>
-        <p>A partir da 2ª rodada, você pode jogar sua carta virada (vale 0 pontos).</p>
+        <p><strong>Manilhas:</strong> ♣ (Zap) &gt; ♥ (Copas) &gt; ♠ (Espadilha) &gt; ♦ (Ouros)</p>
       </div>
-    </div>
-  </div>
-
-  <!-- MODAL HISTÓRICO DA MÃO (SÚMULA) -->
-  <div id="modal-sumula" class="modal-overlay" style="display: none;">
-    <div class="modal-card">
-      <button id="btn-fechar-sumula" class="btn-fechar">&times;</button>
-      <h2>📜 Súmula da Mão</h2>
-      <div id="conteudo-sumula" class="conteudo-sumula"></div>
     </div>
   </div>
 
@@ -94,6 +74,24 @@
       <div class="botoes-modal-desconexao">
         <button id="btn-confirmar-desconexao" class="btn-primary">OK / Sair</button>
       </div>
+    </div>
+  </div>
+
+  <!-- BOTÃO FLUTUANTE DE CHAT (CANTO SUPERIOR DIREITO) -->
+  <button id="btn-toggle-chat" class="btn-toggle-chat" style="display: none;">
+    💬 <span id="badge-chat-unread" class="badge-unread" style="display: none;">!</span>
+  </button>
+
+  <!-- PAINEL DE CHAT SLIDE-OVER GLOBAL -->
+  <div id="box-chat-slide" class="box-chat-slide">
+    <div class="chat-header">
+      <span>Chat da Sala</span>
+      <button id="btn-fechar-chat" class="btn-fechar-chat">&times;</button>
+    </div>
+    <div id="mensagens-chat" class="mensagens-chat"></div>
+    <div class="input-chat-group">
+      <input type="text" id="input-msg-chat" placeholder="Digite uma mensagem...">
+      <button id="btn-enviar-chat">Enviar</button>
     </div>
   </div>
 
@@ -173,14 +171,10 @@
         </div>
         <div class="header-botoes">
           <button id="btn-abrir-qrcode" class="btn-regras">📱 Convite</button>
-          <button id="btn-abrir-sumula" class="btn-regras">📜 Súmula</button>
-
           <select id="select-tema-mesa" class="select-tema">
-            <option value="tema-verde">🌿 Feltro Verde</option>
-            <option value="tema-neon">🌆 Noite Neon</option>
-
-            <option value="tema-faroeste">🌵 Velho Oeste</option>
-
+            <option value="tema-verde">🌿 Feltro</option>
+            <option value="tema-neon">🌆 Neon</option>
+            <option value="tema-faroeste">🌵 Oeste</option>
             <option value="tema-boteco">🍺 Boteco</option>
           </select>
           <button id="btn-abrir-regras" class="btn-regras">📖 Regras</button>
@@ -215,7 +209,14 @@
       
       <div class="status-container">
         <div id="status-vez" class="status">Aguardando...</div>
-        <button id="btn-adicionar-bot" class="btn-secondary" style="display:none; width:auto; padding:4px 10px; margin:0;">🤖 Adicionar Bot</button>
+        
+        <!-- PAINEL DE AÇÕES DE PREPARAÇÃO/START -->
+        <div id="painel-lobby-acoes" style="display:flex; gap:6px;">
+          <button id="btn-adicionar-bot" class="btn-secondary" style="display:none; width:auto; padding:4px 8px; margin:0; font-size:0.8rem;">🤖 + Bot</button>
+          <button id="btn-pronto-lobby" class="btn-primary" style="display:none; width:auto; padding:4px 10px; margin:0; font-size:0.8rem;">👍 Estou Pronto</button>
+          <button id="btn-iniciar-partida" class="btn-primary" style="display:none; width:auto; padding:4px 10px; margin:0; font-size:0.8rem; background: var(--green-btn);">🚀 Iniciar Partida</button>
+        </div>
+
         <div id="timer-turn" class="timer-turn" style="display: none;">Tempo: <span id="tempo-restante">20</span>s</div>
       </div>
     </header>
@@ -269,21 +270,12 @@
         <button id="btn-pedir-truco" class="btn-truco-action">TRUCO!</button>
         
         <label id="container-esconder-carta" class="toggle-esconder" style="display: none;">
-          <input type="checkbox" id="chk-esconder-carta"> Esconder carta nesta rodada (Virada)
+          <input type="checkbox" id="chk-esconder-carta"> Virar carta
         </label>
       </div>
 
       <p id="meu-info">Conectando...</p>
       <div id="minhas-cartas" class="cartas-container"></div>
-
-      <!-- PAINEL DE CHAT EMBUTIDO -->
-      <div id="box-chat" class="box-chat">
-        <div id="mensagens-chat" class="mensagens-chat"></div>
-        <div class="input-chat-group">
-          <input type="text" id="input-msg-chat" placeholder="Enviar mensagem...">
-          <button id="btn-enviar-chat">Enviar</button>
-        </div>
-      </div>
     </footer>
   </div>
 
