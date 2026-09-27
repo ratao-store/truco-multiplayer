@@ -81,8 +81,8 @@
         <p>Se o adversário <strong>correr</strong> (fugir), a equipe que pediu ganha os pontos acumulados até aquele momento.</p>
 
         <h3>6. Mão de 11</h3>
-        <p>Quando uma das equipes atinge 11 pontos, ocorre a Mão de 11. Os parceiros podem olhar as cartas um do outro antes de jogar e decidir se vão jogar (valendo 3 pontos) ou fugir (cedendo 1 ponto ao adversário).</p>
-        <p><strong>Atenção:</strong> É proibido pedir Truco na Mão de 11. Pedir Truco na Mão de 11 faz com que a dupla perca a partida imediatamente.</p>
+        <p>Quando uma das equipes atinge 11 pontos, ocorre a Mão de 11. Os parceiros podem olhar as cartas um do outro antes de jogar e decidir se vão jogar (se perder o adversário ganha 3 pontos) ou fugir (cedendo 1 ponto ao adversário).</p>
+        <p><strong>Atenção:</strong> É proibido pedir Truco na Mão de 11.</p>
 
         <h3>7. Mão de Ferro (11 x 11)</h3>
         <p>Quando a partida fica empatada em 11 x 11, é jogada a Mão de Ferro. As cartas são distribuídas viradas para baixo e jogadas no "escuro", sem que nenhum jogador veja as próprias cartas. Não é permitido pedir Truco.</p>
@@ -286,7 +286,7 @@
       <div id="modal-mao11" class="modal-truco" style="display: none;">
         <p>Seu time está na Mão de 11! Analisem suas cartas.</p>
         <div class="botoes-truco">
-          <button id="btn-aceitar-mao11" class="btn-aceitar">Jogar (3 pts)</button>
+          <button id="btn-aceitar-mao11" class="btn-aceitar">Jogar</button>
           <button id="btn-correr-mao11" class="btn-correr">Correr (-1 pt)</button>
         </div>
       </div>
@@ -303,7 +303,10 @@
 
       <!-- PAINEL DE CONTROLES DO JOGADOR -->
       <div class="controles-jogador">
-        <button id="btn-pedir-truco" class="btn-truco-action">TRUCO!</button>
+        <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+          <button id="btn-pedir-truco" class="btn-truco-action">TRUCO!</button>
+          <button id="btn-correr-rodada" class="btn-truco-action" style="background: var(--red-btn); color: #fff; display: none;">CORRER</button>
+        </div>
         
         <label id="container-esconder-carta" class="toggle-esconder" style="display: none;">
           <input type="checkbox" id="chk-esconder-carta"> Virar carta
