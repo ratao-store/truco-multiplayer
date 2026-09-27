@@ -19,11 +19,12 @@ const FORCA_CARTA = {
   '2': 9, '3': 10
 };
 
+// Ordem dos Quatro Paus do Truco Paulista (Regra 2)
 const FORCA_NAIPE = {
-  '♣': 4, // ZAP
-  '♥': 3, // COPAS
-  '♠': 2, // ESPADAS
-  '♦': 1  // OUROS
+  '♣': 4, // Zap (Mais forte)
+  '♥': 3, // Copas
+  '♠': 2, // Espadilha
+  '♦': 1  // Ouros
 };
 
 function criarBaralho() {
@@ -36,6 +37,7 @@ function criarBaralho() {
   return baralho.sort(() => Math.random() - 0.5);
 }
 
+// Manilha Variável (Carta imediatamente superior ao vira)
 function proximaCarta(valor) {
   const idx = VALORES.indexOf(valor);
   return VALORES[(idx + 1) % VALORES.length];
@@ -57,7 +59,7 @@ function iniciarNovaMao(nomeSala) {
   sala.valorManilha = proximaCarta(sala.vira.valor);
   sala.valorMao = 1;
   sala.trucoPendente = null;
-  sala.ultimoPediuTime = null; // Zera o controle de quem pediu Truco
+  sala.ultimoPediuTime = null; // Zera o controle de aumento da mão
   sala.jogadasRodadaAtual = [];
   sala.rodadasGanhas = { A: 0, B: 0 };
   sala.historicoRodadas = [];
@@ -90,6 +92,7 @@ function iniciarNovaMao(nomeSala) {
 
   io.to(nomeSala).emit('novaMao', {
     vira: sala.vira,
+    valorManilha: sala.valorManilha,
     valorMao: isMaoDe11 ? 3 : 1,
     pontosA: pA,
     pontosB: pB,
@@ -107,16 +110,15 @@ function iniciarNovaMao(nomeSala) {
   if (isMaoDe11) {
     sala.valorMao = 3;
     sala.aguardandoMao11 = true;
-    const timeNaMao11 = pA === 11 ? 'A' : 'B';
-    sala.timeNaMao11 = timeNaMao11;
-
-    io.to(nomeSala).emit('decisaoMao11Pendente', { timeNaMao11 });
+    sala.timeNaMao11 = pA === 11 ? 'A' : 'B';
+    io.to(nomeSala).emit('decisaoMao11Pendente', { timeNaMao11: sala.timeNaMao11 });
   }
 
   io.to(nomeSala).emit('atualizarMesa', []);
   io.to(nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
 }
 
+// Regras de Empate / Canga (Regra 3)
 function verificarFimMao(nomeSala) {
   const sala = salas[nomeSala];
   let timeVencedorMao = null;
@@ -161,43 +163,24 @@ function verificarFimMao(nomeSala) {
 io.on('connection', (socket) => {
 
   socket.on('criarSala', ({ apelido, nomeSala, maxJogadores }) => {
-    if (salas[nomeSala]) {
-      socket.emit('erroEntrada', 'A sala já existe! Escolha outro nome.');
-      return;
-    }
-
+    if (salas[nomeSala]) return socket.emit('erroEntrada', 'A sala já existe!');
     salas[nomeSala] = {
       maxJogadores: parseInt(maxJogadores) || 4,
-      jogadores: [],
-      pontos: { A: 0, B: 0 },
-      trofeus: { A: 0, B: 0 },
-      emAndamento: false,
-      valorMao: 1,
-      ultimoPediuTime: null
+      jogadores: [], pontos: { A: 0, B: 0 }, trofeus: { A: 0, B: 0 },
+      emAndamento: false, valorMao: 1, ultimoPediuTime: null
     };
-
     entrarNaSala(socket, apelido, nomeSala);
   });
 
   socket.on('entrarSala', ({ apelido, nomeSala }) => {
     const sala = salas[nomeSala];
-
-    if (!sala) {
-      socket.emit('erroEntrada', 'Sala não encontrada!');
-      return;
-    }
+    if (!sala) return socket.emit('erroEntrada', 'Sala não encontrada!');
 
     const jogadorExistente = sala.jogadores.find(j => j.apelido.toLowerCase() === apelido.toLowerCase());
-
     if (jogadorExistente) {
-      if (jogadorExistente.online) {
-        socket.emit('erroEntrada', 'Este apelido já está jogando na sala!');
-        return;
-      }
-
+      if (jogadorExistente.online) return socket.emit('erroEntrada', 'Apelido em uso!');
       jogadorExistente.id = socket.id;
       jogadorExistente.online = true;
-
       socket.join(nomeSala);
       socket.nomeSala = nomeSala;
       socket.apelido = jogadorExistente.apelido;
@@ -205,36 +188,6 @@ io.on('connection', (socket) => {
 
       socket.emit('sucessoEntrada', { apelido: jogadorExistente.apelido, time: jogadorExistente.time, nomeSala });
       io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
-
-      const pA = sala.pontos.A;
-      const pB = sala.pontos.B;
-      const maoDeFerro = (pA === 11 && pB === 11);
-      const isMaoDe11 = (pA === 11 || pB === 11) && !maoDeFerro;
-
-      socket.emit('minhasCartas', { cartas: jogadorExistente.cartas, noEscuro: maoDeFerro });
-      
-      io.to(nomeSala).emit('novaMao', {
-        vira: sala.vira,
-        valorMao: sala.valorMao,
-        pontosA: pA,
-        pontosB: pB,
-        vez: sala.jogadores[sala.indiceVez].apelido,
-        maoDeFerro,
-        isMaoDe11
-      });
-
-      return;
-    }
-
-    const jogandoOnline = sala.jogadores.filter(j => j.online).length;
-    if (sala.jogadores.length >= sala.maxJogadores && jogandoOnline === sala.maxJogadores) {
-      socket.emit('erroEntrada', 'A sala está cheia!');
-      return;
-    }
-
-    const desfalque = sala.jogadores.find(j => !j.online);
-    if (desfalque) {
-      socket.emit('erroEntrada', `Esta sala está aguardando a reconexão de (${desfalque.apelido}). Digite o mesmo nome caso seja você!`);
       return;
     }
 
@@ -250,14 +203,7 @@ io.on('connection', (socket) => {
     socket.apelido = apelido;
     socket.time = time;
 
-    sala.jogadores.push({
-      id: socket.id,
-      apelido,
-      time,
-      cartas: [],
-      online: true
-    });
-
+    sala.jogadores.push({ id: socket.id, apelido, time, cartas: [], online: true });
     socket.emit('sucessoEntrada', { apelido, time, nomeSala });
     io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
 
@@ -267,28 +213,22 @@ io.on('connection', (socket) => {
     }
   }
 
-  // RESPOSTA DECISÃO DA MÃO DE 11
   socket.on('respostaMao11', (aceitou) => {
     const sala = salas[socket.nomeSala];
-    if (!sala || !sala.aguardandoMao11) return;
-
-    if (socket.time !== sala.timeNaMao11) return;
+    if (!sala || !sala.aguardandoMao11 || socket.time !== sala.timeNaMao11) return;
 
     sala.aguardandoMao11 = false;
-
     if (aceitou) {
       io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
     } else {
-      const timeAdversario = sala.timeNaMao11 === 'A' ? 'B' : 'A';
-      sala.pontos[timeAdversario] += 1;
-
-      if (sala.pontos[timeAdversario] >= 12) {
-        sala.trofeus[timeAdversario] += 1;
+      const adversario = sala.timeNaMao11 === 'A' ? 'B' : 'A';
+      sala.pontos[adversario] += 1;
+      if (sala.pontos[adversario] >= 12) {
+        sala.trofeus[adversario] += 1;
         io.to(socket.nomeSala).emit('atualizarTrofeus', sala.trofeus);
-        io.to(socket.nomeSala).emit('fimDePartida', { vencedor: timeAdversario });
+        io.to(socket.nomeSala).emit('fimDePartida', { vencedor: adversario });
         sala.pontos = { A: 0, B: 0 };
       }
-
       iniciarNovaMao(socket.nomeSala);
     }
   });
@@ -310,11 +250,7 @@ io.on('connection', (socket) => {
     const isZap = (isManilha && cartaJogada.naipe === '♣');
 
     if (isManilha && !cartaEscondida) {
-      io.to(socket.nomeSala).emit('efeitoManilhaZap', {
-        carta: cartaJogada,
-        isZap,
-        jogador: jogador.apelido
-      });
+      io.to(socket.nomeSala).emit('efeitoManilhaZap', { carta: cartaJogada, isZap });
     }
 
     sala.jogadasRodadaAtual.push({
@@ -328,9 +264,8 @@ io.on('connection', (socket) => {
       cartas: jogador.cartas,
       noEscuro: (sala.pontos.A === 11 && sala.pontos.B === 11)
     });
-    
-    io.to(socket.nomeSala).emit('atualizarMesa', sala.jogadasRodadaAtual);
 
+    io.to(socket.nomeSala).emit('atualizarMesa', sala.jogadasRodadaAtual);
     sala.indiceVez = (sala.indiceVez + 1) % sala.jogadores.length;
 
     if (sala.jogadasRodadaAtual.length === sala.jogadores.length) {
@@ -340,51 +275,49 @@ io.on('connection', (socket) => {
         let empate = false;
 
         sala.jogadasRodadaAtual.forEach(j => {
-          let f = 0;
-          if (!j.escondida) {
-            f = calcularForca(j.carta, sala.valorManilha);
-          }
-
+          let f = j.escondida ? 0 : calcularForca(j.carta, sala.valorManilha);
           if (f > maiorForca) {
-            maiorForca = f;
-            vencedorJogada = j;
-            empate = false;
+            maiorForca = f; vencedorJogada = j; empate = false;
           } else if (f === maiorForca) {
             empate = true;
           }
         });
 
-        if (empate) {
-          sala.historicoRodadas.push('Empate');
-        } else {
+        if (empate) sala.historicoRodadas.push('Empate');
+        else {
           sala.rodadasGanhas[vencedorJogada.time] += 1;
           sala.historicoRodadas.push(vencedorJogada.time);
         }
 
         io.to(socket.nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
-
         sala.jogadasRodadaAtual = [];
         io.to(socket.nomeSala).emit('atualizarMesa', []);
 
         verificarFimMao(socket.nomeSala);
-
-        if (sala.emAndamento) {
-          io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
-        }
+        if (sala.emAndamento) io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
       }, 1500);
     } else {
       io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
     }
   });
 
-  // SOLICITAÇÃO DE TRUCO / SEIS / NOVE / 12
+  // SISTEMA DE APOSTA E ALTERNÂNCIA RIGOROSA (Regra 4 e 5)
   socket.on('pedirTruco', () => {
     const sala = salas[socket.nomeSala];
     if (!sala || !sala.emAndamento || sala.aguardandoMao11 || sala.trucoPendente) return;
 
-    if (sala.pontos.A === 11 || sala.pontos.B === 11) return;
+    // Regra 5: Proibido trucar na Mão de 11 (Perde a partida instantaneamente)
+    if (sala.pontos.A === 11 || sala.pontos.B === 11) {
+      const timeAdversario = socket.time === 'A' ? 'B' : 'A';
+      sala.trofeus[timeAdversario] += 1;
+      io.to(socket.nomeSala).emit('atualizarTrofeus', sala.trofeus);
+      io.to(socket.nomeSala).emit('fimDePartida', { vencedor: timeAdversario });
+      sala.pontos = { A: 0, B: 0 };
+      iniciarNovaMao(socket.nomeSala);
+      return;
+    }
 
-    // TRAVA DE SEGURANÇA: Impede que a mesma dupla peça aumento em sequência
+    // Regra de Alternância: Não pode pedir aumento se sua dupla foi a última a pedir
     if (sala.ultimoPediuTime === socket.time) return;
 
     let proximoValor = 3;
@@ -403,25 +336,20 @@ io.on('connection', (socket) => {
     io.to(socket.nomeSala).emit('solicitacaoTruco', sala.trucoPendente);
   });
 
-  // RESPOSTA AO TRUCO / AUMENTO
   socket.on('respostaTruco', ({ aceitou, aumentar }) => {
     const sala = salas[socket.nomeSala];
-    if (!sala || !sala.trucoPendente) return;
-
-    // Quem está respondendo tem que ser do time adversário de quem pediu
-    if (socket.time === sala.trucoPendente.pediuTime) return;
+    if (!sala || !sala.trucoPendente || socket.time === sala.trucoPendente.pediuTime) return;
 
     const valorPropostoAtual = sala.trucoPendente.valorProposto;
     const timeQuePediuAnterior = sala.trucoPendente.pediuTime;
 
     if (aumentar && valorPropostoAtual < 12) {
-      // Re-aumentar imediatamente (ex: oponente pediu Truco e você respondeu pedindo 6)
       let proximoValor = 6;
       if (valorPropostoAtual === 6) proximoValor = 9;
       else if (valorPropostoAtual === 9) proximoValor = 12;
 
       sala.valorMao = valorPropostoAtual;
-      sala.ultimoPediuTime = socket.time; // O direito do pedido muda para o jogador atual
+      sala.ultimoPediuTime = socket.time; // Transfere o bloqueio/direito de pedido
 
       sala.trucoPendente = {
         pediuTime: socket.time,
@@ -435,24 +363,20 @@ io.on('connection', (socket) => {
 
     if (aceitou) {
       sala.valorMao = valorPropostoAtual;
-      sala.ultimoPediuTime = timeQuePediuAnterior; // Registra quem foi a dupla que fez o último pedido aceito
+      sala.ultimoPediuTime = timeQuePediuAnterior; // Registra a dupla que solicitou o último aumento
       sala.trucoPendente = null;
 
-      io.to(socket.nomeSala).emit('trucoAceito', { valorMao: sala.valorMao });
-      
-      // Atualiza os botões para todos na sala (bloqueando a dupla que acabou de pedir)
       io.to(socket.nomeSala).emit('atualizarEstadoTruco', {
         valorMao: sala.valorMao,
         ultimoPediuTime: sala.ultimoPediuTime,
         bloqueado: false
       });
     } else {
-      // Se correu/fugiu do pedido, o time que pediu ganha o valor atual acumulado
       sala.pontos[timeQuePediuAnterior] += sala.valorMao;
       sala.trucoPendente = null;
 
-      if (sala.pontos['A'] >= 12 || sala.pontos['B'] >= 12) {
-        const venceu = sala.pontos['A'] >= 12 ? 'A' : 'B';
+      if (sala.pontos.A >= 12 || sala.pontos.B >= 12) {
+        const venceu = sala.pontos.A >= 12 ? 'A' : 'B';
         sala.trofeus[venceu] += 1;
         io.to(socket.nomeSala).emit('atualizarTrofeus', sala.trofeus);
         io.to(socket.nomeSala).emit('fimDePartida', { vencedor: venceu });
@@ -465,7 +389,7 @@ io.on('connection', (socket) => {
 
   socket.on('destruirSalaForcado', () => {
     if (socket.nomeSala && salas[socket.nomeSala]) {
-      io.to(socket.nomeSala).emit('salaDestruida', 'A sala foi destruída a pedido de um jogador.');
+      io.to(socket.nomeSala).emit('salaDestruida', 'A sala foi encerrada.');
       delete salas[socket.nomeSala];
     }
   });
@@ -473,19 +397,12 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     if (socket.nomeSala && salas[socket.nomeSala]) {
       const sala = salas[socket.nomeSala];
-      const jogador = sala.jogadores.find(j => j.id === socket.id);
-
-      if (jogador) {
-        jogador.online = false;
-        socket.to(socket.nomeSala).emit('jogadorDesconectado', {
-          apelido: jogador.apelido
-        });
+      const j = sala.jogadores.find(x => x.id === socket.id);
+      if (j) {
+        j.online = false;
+        socket.to(socket.nomeSala).emit('jogadorDesconectado', { apelido: j.apelido });
       }
-
-      const restamOnline = sala.jogadores.some(j => j.online);
-      if (!restamOnline) {
-        delete salas[socket.nomeSala];
-      }
+      if (!sala.jogadores.some(x => x.online)) delete salas[socket.nomeSala];
     }
   });
 });
