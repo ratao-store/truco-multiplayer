@@ -28,6 +28,144 @@ body {
   overflow: hidden;
 }
 
+/* OVERLAY DE EMBARALHAR CARTAS */
+.overlay-embaralhar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container-embaralhar {
+  text-align: center;
+}
+
+.container-embaralhar h2 {
+  color: #f1c40f;
+  font-size: 1.5rem;
+  margin-top: 25px;
+  letter-spacing: 1px;
+  animation: pulse 1s infinite alternate;
+}
+
+.monte-cartas {
+  position: relative;
+  width: 100px;
+  height: 140px;
+  margin: 0 auto;
+}
+
+.carta-animada {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 90px;
+  height: 130px;
+  background: #2c3e50;
+  border: 2px solid #34495e;
+  border-radius: 12px;
+  font-size: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+}
+
+.carta-animada.c1 {
+  animation: shuffleLeft 0.6s infinite alternate ease-in-out;
+}
+
+.carta-animada.c2 {
+  animation: shuffleRight 0.6s infinite alternate ease-in-out 0.2s;
+}
+
+.carta-animada.c3 {
+  animation: shuffleCenter 0.6s infinite alternate ease-in-out 0.4s;
+}
+
+@keyframes shuffleLeft {
+  0% { transform: translateX(0) rotate(0deg); }
+  100% { transform: translateX(-40px) rotate(-15deg); }
+}
+
+@keyframes shuffleRight {
+  0% { transform: translateX(0) rotate(0deg); }
+  100% { transform: translateX(40px) rotate(15deg); }
+}
+
+@keyframes shuffleCenter {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-20px) scale(1.05); }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* OVERLAY DO MODAL DE DESCONEXÃO */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-card {
+  background: var(--panel-bg);
+  border: 2px solid var(--gold-primary);
+  border-radius: 16px;
+  padding: 30px 25px;
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-icone {
+  font-size: 3.5rem;
+  margin-bottom: 10px;
+}
+
+.modal-card h2 {
+  color: #f1c40f;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.modal-card p {
+  color: #ddd;
+  font-size: 1rem;
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+.botoes-modal-desconexao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* OVERLAY DO ZAP COM EFEITO DE VIDRO QUEBRADO */
 .overlay-zap {
   position: fixed;
@@ -248,7 +386,7 @@ header {
   color: var(--gold-primary);
 }
 
-/* BOLINHAS DAS RODADAS DA MÃO */
+/* BOLINHAS DAS RODADAS DA MÃO - CORES DINÂMICAS */
 .bolinhas-rodada {
   display: flex;
   justify-content: center;
@@ -262,12 +400,25 @@ header {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.4);
+  transition: background 0.3s, box-shadow 0.3s;
 }
 
-.bolinha.ativa {
+.bolinha.vitoria {
   background: #2ecc71;
   border-color: #27ae60;
   box-shadow: 0 0 8px #2ecc71;
+}
+
+.bolinha.derrota {
+  background: #e74c3c;
+  border-color: #c0392b;
+  box-shadow: 0 0 8px #e74c3c;
+}
+
+.bolinha.empate {
+  background: #e67e22;
+  border-color: #d35400;
+  box-shadow: 0 0 8px #e67e22;
 }
 
 .vs {
