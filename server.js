@@ -7,7 +7,13 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
+// CORREÇÃO: Serve os arquivos estáticos diretamente da raiz do projeto
+app.use(express.static(__dirname));
+
+// Rota principal para garantir o envio do index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 const NAIPES = ['♦', '♠', '♥', '♣']; 
 const VALORES_ORDEM = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
@@ -91,9 +97,8 @@ function verificarAcaoBot(sala) {
   const jogadorAtual = sala.jogadores[sala.indiceTurno];
   if (!jogadorAtual || !jogadorAtual.isBot || sala.processandoTurno) return;
 
-  // Decisão de Pedir Truco pela IA do Bot
   let temManilhaOuCartaBoa = jogadorAtual.cartas.some(c => c.valor === sala.valorManilha || ['3', '2', 'A'].includes(c.valor));
-  let roubarBluff = Math.random() < 0.25; // 25% de hipótese de blefar
+  let roubarBluff = Math.random() < 0.25;
 
   if ((temManilhaOuCartaBoa || roubarBluff) && sala.ultimoPediuTime !== jogadorAtual.time && !sala.isMaoDe11 && sala.valorMao < 12) {
     let proximoValor = sala.valorMao === 1 ? 3 : (sala.valorMao === 3 ? 6 : (sala.valorMao === 6 ? 9 : 12));
@@ -104,10 +109,8 @@ function verificarAcaoBot(sala) {
     };
     if (sala.timerTurno) clearTimeout(sala.timerTurno);
     
-    // REGRA 3: Notifica explicitamente todos da sala sobre o pedido do Bot na 1ª rodada
     io.to(sala.nome).emit('solicitacaoTruco', sala.propostaTruco);
 
-    // Se o adversário for outro bot, responder automaticamente
     let timeAdversario = jogadorAtual.time === 'A' ? 'B' : 'A';
     let advBot = sala.jogadores.find(j => j.time === timeAdversario && j.isBot);
     if (advBot) {
@@ -116,7 +119,6 @@ function verificarAcaoBot(sala) {
     return;
   }
 
-  // Jogar Carta do Bot
   setTimeout(() => {
     if (jogadorAtual.cartas.length > 0) {
       executarJogadaCarta(sala, jogadorAtual, 0, false);
@@ -405,7 +407,6 @@ io.on('connection', (socket) => {
     if (sala.timerTurno) clearTimeout(sala.timerTurno);
     io.to(sala.nome).emit('solicitacaoTruco', sala.propostaTruco);
 
-    // Se o adversário for Bot, responde automaticamente
     let timeAdversario = jogador.time === 'A' ? 'B' : 'A';
     let advBot = sala.jogadores.find(j => j.time === timeAdversario && j.isBot);
     if (advBot) {
@@ -479,5 +480,6 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+// CORREÇÃO: Garante o uso da porta definida pelas variáveis de ambiente do Render
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => console.log(`Servidor rodando na porta ${PORT}`));
