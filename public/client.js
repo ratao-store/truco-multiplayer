@@ -107,6 +107,7 @@ let bloqueioJogada = false;
 let intervalTimer = null;
 let chatAberto = false;
 let souDonoSala = false;
+let aguardandoDecisaoMao11 = false;
 
 // Gestão de Chat Retrátil
 btnToggleChat.onclick = () => {
@@ -118,6 +119,7 @@ btnToggleChat.onclick = () => {
     boxChatSlide.classList.remove('aberto');
   }
 };
+
 btnFecharChat.onclick = () => {
   chatAberto = false;
   boxChatSlide.classList.remove('aberto');
@@ -143,7 +145,9 @@ socket.on('receberChat', (data) => {
 });
 
 // Troca de Tema
-selectTemaMesa.onchange = (e) => { document.body.className = e.target.value; };
+selectTemaMesa.onchange = (e) => {
+  document.body.className = e.target.value;
+};
 
 btnAbrirRegras.onclick = () => modalRegras.style.display = 'flex';
 btnFecharRegras.onclick = () => modalRegras.style.display = 'none';
@@ -152,37 +156,71 @@ btnAbrirQRCode.onclick = () => {
   const link = `${window.location.origin}/?sala=${encodeURIComponent(nomeSalaAtual)}`;
   inputLinkConvite.value = link;
   document.getElementById('qrcode-container').innerHTML = '';
-  new QRCode(document.getElementById('qrcode-container'), { text: link, width: 128, height: 128 });
+  new QRCode(document.getElementById('qrcode-container'), {
+    text: link,
+    width: 128,
+    height: 128
+  });
   modalQRCode.style.display = 'flex';
 };
+
 btnFecharQRCode.onclick = () => modalQRCode.style.display = 'none';
+
 btnCopiarLink.onclick = () => {
   navigator.clipboard.writeText(inputLinkConvite.value);
   alert('Link copiado!');
 };
 
-btnAbrirCriar.onclick = () => { cardEntrar.style.display = 'none'; cardCriar.style.display = 'block'; };
-btnVoltarEntrar.onclick = () => { cardCriar.style.display = 'none'; cardEntrar.style.display = 'block'; };
+btnAbrirCriar.onclick = () => {
+  cardEntrar.style.display = 'none';
+  cardCriar.style.display = 'block';
+};
+
+btnVoltarEntrar.onclick = () => {
+  cardCriar.style.display = 'none';
+  cardEntrar.style.display = 'block';
+};
 
 btnEntrar.onclick = () => {
   initAudio();
+
   const apelido = document.getElementById('input-apelido').value.trim();
   const nomeSala = document.getElementById('input-sala').value.trim();
   const avatar = document.getElementById('select-avatar-login').value;
-  if (!apelido || !nomeSala) return alert('Preencha apelido e sala!');
+
+  if (!apelido || !nomeSala) {
+    return alert('Preencha apelido e sala!');
+  }
+
   meuAvatar = avatar;
-  socket.emit('entrarSala', { apelido, avatar, nomeSala });
+
+  socket.emit('entrarSala', {
+    apelido,
+    avatar,
+    nomeSala
+  });
 };
 
 btnConfirmarCriar.onclick = () => {
   initAudio();
+
   const apelido = document.getElementById('input-criar-apelido').value.trim();
   const nomeSala = document.getElementById('input-criar-sala').value.trim();
   const avatar = document.getElementById('select-avatar-criar').value;
   const maxJogadores = document.getElementById('select-max-jogadores').value;
-  if (!apelido || !nomeSala) return alert('Preencha apelido e nome da sala!');
+
+  if (!apelido || !nomeSala) {
+    return alert('Preencha apelido e nome da sala!');
+  }
+
   meuAvatar = avatar;
-  socket.emit('criarSala', { apelido, avatar, nomeSala, maxJogadores });
+
+  socket.emit('criarSala', {
+    apelido,
+    avatar,
+    nomeSala,
+    maxJogadores
+  });
 };
 
 socket.on('erroEntrada', (msg) => alert(msg));
@@ -205,20 +243,36 @@ socket.on('sucessoEntrada', (data) => {
   }
 
   document.getElementById('label-nome-sala').innerText = data.nomeSala;
-  document.getElementById('meu-info').innerText = `${meuAvatar} ${meuApelido} (Time ${meuTime})`;
+  document.getElementById('meu-info').innerText =
+    `${meuAvatar} ${meuApelido} (Time ${meuTime})`;
 });
 
 socket.on('atualizarJogadores', (data) => {
   const { jogadores, jogoIniciado } = data;
-  const timeA = jogadores.filter(j => j.time === 'A').map(j => `${j.avatar || ''} ${j.apelido}`).join(' & ');
-  const timeB = jogadores.filter(j => j.time === 'B').map(j => `${j.avatar || ''} ${j.apelido}`).join(' & ');
-  document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
-  document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
+
+  const timeA = jogadores
+    .filter(j => j.time === 'A')
+    .map(j => `${j.avatar || ''} ${j.apelido}`)
+    .join(' & ');
+
+  const timeB = jogadores
+    .filter(j => j.time === 'B')
+    .map(j => `${j.avatar || ''} ${j.apelido}`)
+    .join(' & ');
+
+  document.getElementById('nome-time-a').innerText =
+    timeA || 'Aguardando...';
+
+  document.getElementById('nome-time-b').innerText =
+    timeB || 'Aguardando...';
 
   if (!jogoIniciado) {
     if (souDonoSala) {
-      btnAdicionarBot.style.display = jogadores.length < 4 ? 'inline-block' : 'none';
-      btnIniciarPartida.style.display = jogadores.length >= 2 ? 'inline-block' : 'none';
+      btnAdicionarBot.style.display =
+        jogadores.length < 4 ? 'inline-block' : 'none';
+
+      btnIniciarPartida.style.display =
+        jogadores.length >= 2 ? 'inline-block' : 'none';
     } else {
       btnAdicionarBot.style.display = 'none';
       btnIniciarPartida.style.display = 'none';
@@ -231,14 +285,18 @@ socket.on('atualizarJogadores', (data) => {
 
 btnAdicionarBot.onclick = () => socket.emit('adicionarBot');
 
-btnIniciarPartida.onclick = () => socket.emit('solicitarInicioPartida');
+btnIniciarPartida.onclick = () =>
+  socket.emit('solicitarInicioPartida');
 
 socket.on('iniciarContagemRegressiva', () => {
   overlayContagem.style.display = 'flex';
+
   let c = 5;
   numeroContagem.innerText = c;
+
   let t = setInterval(() => {
     c--;
+
     if (c > 0) {
       numeroContagem.innerText = c;
     } else {
@@ -254,14 +312,21 @@ socket.on('atualizarTrofeus', (data) => {
 });
 
 btnPedirTruco.onclick = () => socket.emit('pedirTruco');
+
 btnCorrerRodada.onclick = () => {
   if (confirm('Deseja realmente correr desta mão?')) {
     socket.emit('correrVoluntario');
   }
 };
 
+// Voz quando alguém corre
+socket.on('jogadorCorreu', (data) => {
+  falarTexto(`${data.apelido} correu!`);
+});
+
 socket.on('solicitacaoTruco', (data) => {
   let textoVoz = 'pediu truco!';
+
   if (data.valorProposto === 6) textoVoz = 'pediu seis!';
   else if (data.valorProposto === 9) textoVoz = 'pediu nove!';
   else if (data.valorProposto === 12) textoVoz = 'pediu doze!';
@@ -270,93 +335,203 @@ socket.on('solicitacaoTruco', (data) => {
 
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
+
     let rotulo = 'TRUCO!';
+
     if (data.valorProposto === 6) rotulo = 'SEIS!';
     if (data.valorProposto === 9) rotulo = 'NOVE!';
     if (data.valorProposto === 12) rotulo = '12!';
 
-    textoTrucoPedido.innerText = `${data.pediuApelido} pediu ${rotulo}`;
-    btnAceitarTruco.innerText = `Aceitar (${data.valorProposto} pts)`;
+    textoTrucoPedido.innerText =
+      `${data.pediuApelido} pediu ${rotulo}`;
+
+    btnAceitarTruco.innerText =
+      `Aceitar (${data.valorProposto} pts)`;
 
     if (data.valorProposto >= 12) {
       btnAumentarTruco.style.display = 'none';
     } else {
       btnAumentarTruco.style.display = 'inline-block';
+
       let prox = 'Pedir 6';
+
       if (data.valorProposto === 6) prox = 'Pedir 9';
       if (data.valorProposto === 9) prox = 'Pedir 12';
+
       btnAumentarTruco.innerText = prox;
     }
   } else {
-    document.getElementById('status-vez').innerText = `Aguardando resposta do adversário...`;
+    document.getElementById('status-vez').innerText =
+      `Aguardando resposta do adversário...`;
   }
 });
 
-btnAceitarTruco.onclick = () => { modalTruco.style.display = 'none'; socket.emit('respostaTruco', { aceitou: true, aumentar: false }); };
-btnCorrerTruco.onclick = () => { modalTruco.style.display = 'none'; socket.emit('respostaTruco', { aceitou: false, aumentar: false }); };
-btnAumentarTruco.onclick = () => { modalTruco.style.display = 'none'; socket.emit('respostaTruco', { aceitou: true, aumentar: true }); };
+btnAceitarTruco.onclick = () => {
+  modalTruco.style.display = 'none';
+
+  socket.emit('respostaTruco', {
+    aceitou: true,
+    aumentar: false
+  });
+};
+
+btnCorrerTruco.onclick = () => {
+  modalTruco.style.display = 'none';
+
+  socket.emit('respostaTruco', {
+    aceitou: false,
+    aumentar: false
+  });
+};
+
+btnAumentarTruco.onclick = () => {
+  modalTruco.style.display = 'none';
+
+  socket.emit('respostaTruco', {
+    aceitou: true,
+    aumentar: true
+  });
+};
 
 socket.on('atualizarEstadoTruco', (data) => {
   valorMaoAtual = data.valorMao;
-  document.getElementById('label-valor-mao').innerText = valorMaoAtual;
 
-  const podeAumentar = (data.ultimoPediuTime !== meuTime) && !data.bloqueado && valorMaoAtual < 12;
+  // Depois que a Mão de 11 foi aceita, a decisão terminou.
+  if (data.isMaoDe11) {
+    aguardandoDecisaoMao11 = false;
+    modalMao11.style.display = 'none';
+    btnCorrerRodada.style.display = 'inline-block';
+  }
 
-  if (podeAumentar && !data.isMaoDe11 && !data.maoDeFerro) {
+  document.getElementById('label-valor-mao').innerText =
+    valorMaoAtual;
+
+  const podeAumentar =
+    (data.ultimoPediuTime !== meuTime) &&
+    !data.bloqueado &&
+    valorMaoAtual < 12;
+
+  if (
+    podeAumentar &&
+    !data.isMaoDe11 &&
+    !data.maoDeFerro
+  ) {
     btnPedirTruco.style.display = 'inline-block';
-    if (valorMaoAtual === 1) btnPedirTruco.innerText = 'TRUCO!';
-    else if (valorMaoAtual === 3) btnPedirTruco.innerText = 'SEIS!';
-    else if (valorMaoAtual === 6) btnPedirTruco.innerText = 'NOVE!';
-    else if (valorMaoAtual === 9) btnPedirTruco.innerText = '12!';
+
+    if (valorMaoAtual === 1)
+      btnPedirTruco.innerText = 'TRUCO!';
+    else if (valorMaoAtual === 3)
+      btnPedirTruco.innerText = 'SEIS!';
+    else if (valorMaoAtual === 6)
+      btnPedirTruco.innerText = 'NOVE!';
+    else if (valorMaoAtual === 9)
+      btnPedirTruco.innerText = '12!';
   } else {
     btnPedirTruco.style.display = 'none';
   }
 });
 
-btnAceitarMao11.onclick = () => { modalMao11.style.display = 'none'; socket.emit('respostaMao11', true); };
-btnCorrerMao11.onclick = () => { modalMao11.style.display = 'none'; socket.emit('respostaMao11', false); };
+// Mão de 11
+btnAceitarMao11.onclick = () => {
+  aguardandoDecisaoMao11 = false;
+  modalMao11.style.display = 'none';
+
+  socket.emit('respostaMao11', true);
+};
+
+btnCorrerMao11.onclick = () => {
+  aguardandoDecisaoMao11 = false;
+  modalMao11.style.display = 'none';
+
+  socket.emit('respostaMao11', false);
+};
 
 socket.on('decisaoMao11Pendente', (data) => {
+  aguardandoDecisaoMao11 = true;
+
+  // Enquanto a decisão da Mão de 11 estiver pendente,
+  // ninguém usa o botão genérico CORRER.
+  btnCorrerRodada.style.display = 'none';
+
   if (data.timeNaMao11 === meuTime) {
     modalMao11.style.display = 'block';
   } else {
-    document.getElementById('status-vez').innerText = `Time ${data.timeNaMao11} decidindo Mão de 11...`;
+    modalMao11.style.display = 'none';
+
+    document.getElementById('status-vez').innerText =
+      `Time ${data.timeNaMao11} decidindo Mão de 11...`;
   }
 });
 
 function atualizarBolinhas(historicoRodadas) {
-  const bolinhasA = document.querySelectorAll('#bolinhas-a .bolinha');
-  const bolinhasB = document.querySelectorAll('#bolinhas-b .bolinha');
+  const bolinhasA =
+    document.querySelectorAll('#bolinhas-a .bolinha');
+
+  const bolinhasB =
+    document.querySelectorAll('#bolinhas-b .bolinha');
 
   bolinhasA.forEach(b => b.className = 'bolinha');
   bolinhasB.forEach(b => b.className = 'bolinha');
 
   historicoRodadas.forEach((res, idx) => {
     if (idx >= 3) return;
-    if (res === 'A') { bolinhasA[idx].classList.add('vitoria'); bolinhasB[idx].classList.add('derrota'); }
-    else if (res === 'B') { bolinhasB[idx].classList.add('vitoria'); bolinhasA[idx].classList.add('derrota'); }
-    else if (res === 'Empate') { bolinhasA[idx].classList.add('empate'); bolinhasB[idx].classList.add('empate'); }
+
+    if (res === 'A') {
+      bolinhasA[idx].classList.add('vitoria');
+      bolinhasB[idx].classList.add('derrota');
+    } else if (res === 'B') {
+      bolinhasB[idx].classList.add('vitoria');
+      bolinhasA[idx].classList.add('derrota');
+    } else if (res === 'Empate') {
+      bolinhasA[idx].classList.add('empate');
+      bolinhasB[idx].classList.add('empate');
+    }
   });
 }
 
 socket.on('novaMao', (data) => {
   overlayEmbaralhar.style.display = 'flex';
 
+  aguardandoDecisaoMao11 = false;
+  modalMao11.style.display = 'none';
+
+  // Limpa imediatamente qualquer carta visual da mão anterior.
+  const mesaEl = document.getElementById('cartas-mesa');
+
+  if (mesaEl) {
+    mesaEl.innerHTML = '';
+  }
+
   setTimeout(() => {
     overlayEmbaralhar.style.display = 'none';
+
     valorMaoAtual = data.valorMao;
     numRodadaAtual = 1;
+
     chkEsconderCarta.checked = false;
     containerEsconderCarta.style.display = 'none';
 
-    document.getElementById('label-valor-mao').innerText = valorMaoAtual;
-    document.getElementById('pontos-a').innerText = data.pontosA;
-    document.getElementById('pontos-b').innerText = data.pontosB;
-    document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
-    document.getElementById('label-manilha').innerText = `Manilha: ${data.valorManilha || '-'}`;
+    document.getElementById('label-valor-mao').innerText =
+      valorMaoAtual;
+
+    document.getElementById('pontos-a').innerText =
+      data.pontosA;
+
+    document.getElementById('pontos-b').innerText =
+      data.pontosB;
+
+    document.getElementById('status-vez').innerText =
+      `Vez de: ${data.vez}`;
+
+    document.getElementById('label-manilha').innerText =
+      `Manilha: ${data.valorManilha || '-'}`;
 
     modalTruco.style.display = 'none';
-    modalMao11.style.display = 'none';
+
+    // O evento decisaoMao11Pendente controla o popup quando necessário.
+    if (!aguardandoDecisaoMao11) {
+      modalMao11.style.display = 'none';
+    }
 
     btnCorrerRodada.style.display = 'inline-block';
 
@@ -370,43 +545,80 @@ socket.on('novaMao', (data) => {
     atualizarBolinhas([]);
 
     const viraEl = document.getElementById('carta-vira');
+
     if (data.maoDeFerro) {
       viraEl.innerText = '🂠';
       viraEl.className = 'carta vira escuro';
     } else {
-      viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
-      viraEl.className = 'carta vira' + (data.vira.naipe === '♦' || data.vira.naipe === '♥' ? ' vermelho' : '');
+      viraEl.innerText =
+        `${data.vira.valor}${data.vira.naipe}`;
+
+      viraEl.className =
+        'carta vira' +
+        (
+          data.vira.naipe === '♦' ||
+          data.vira.naipe === '♥'
+            ? ' vermelho'
+            : ''
+        );
     }
   }, 1200);
 });
 
 socket.on('atualizarRodadasMao', (historicoRodadas) => {
   atualizarBolinhas(historicoRodadas);
-  numRodadaAtual = historicoRodadas.length + 1;
-  containerEsconderCarta.style.display = numRodadaAtual >= 2 ? 'inline-block' : 'none';
+
+  numRodadaAtual =
+    historicoRodadas.length + 1;
+
+  containerEsconderCarta.style.display =
+    numRodadaAtual >= 2
+      ? 'inline-block'
+      : 'none';
 });
 
 socket.on('minhasCartas', (data) => {
-  const container = document.getElementById('minhas-cartas');
+  const container =
+    document.getElementById('minhas-cartas');
+
   container.innerHTML = '';
 
   data.cartas.forEach((c, idx) => {
     const cardEl = document.createElement('div');
+
     if (data.noEscuro) {
       cardEl.className = 'carta escuro';
       cardEl.innerText = '🂠';
     } else {
-      cardEl.className = 'carta' + (c.naipe === '♦' || c.naipe === '♥' ? ' vermelho' : '');
-      cardEl.innerText = `${c.valor}${c.naipe}`;
+      cardEl.className =
+        'carta' +
+        (
+          c.naipe === '♦' ||
+          c.naipe === '♥'
+            ? ' vermelho'
+            : ''
+        );
+
+      cardEl.innerText =
+        `${c.valor}${c.naipe}`;
     }
 
     cardEl.onclick = () => {
       if (!eMinhaVez || bloqueioJogada) return;
+
       bloqueioJogada = true;
+
       playSoundPlayCard();
 
-      const esconder = chkEsconderCarta.checked && numRodadaAtual >= 2;
-      socket.emit('jogarCarta', { indiceCarta: idx, esconder });
+      const esconder =
+        chkEsconderCarta.checked &&
+        numRodadaAtual >= 2;
+
+      socket.emit('jogarCarta', {
+        indiceCarta: idx,
+        esconder
+      });
+
       chkEsconderCarta.checked = false;
     };
 
@@ -415,98 +627,208 @@ socket.on('minhasCartas', (data) => {
 });
 
 socket.on('atualizarMesa', (cartasMesa) => {
-  const container = document.getElementById('cartas-mesa');
+  const container =
+    document.getElementById('cartas-mesa');
+
+  // Sempre limpa antes de redesenhar.
   container.innerHTML = '';
 
   cartasMesa.forEach((item) => {
     const cardEl = document.createElement('div');
+
     if (item.escondida) {
       cardEl.className = 'carta escuro';
       cardEl.innerText = '🂠';
     } else {
-      cardEl.className = 'carta' + (item.carta.naipe === '♦' || item.carta.naipe === '♥' ? ' vermelho' : '');
-      cardEl.innerText = `${item.carta.valor}${item.carta.naipe}`;
+      cardEl.className =
+        'carta' +
+        (
+          item.carta.naipe === '♦' ||
+          item.carta.naipe === '♥'
+            ? ' vermelho'
+            : ''
+        );
+
+      cardEl.innerText =
+        `${item.carta.valor}${item.carta.naipe}`;
     }
+
     container.appendChild(cardEl);
   });
 });
 
 socket.on('efeitoManilhaZap', (data) => {
-  textoEfeitoZap.innerText = data.isZap ? '💥 ZAP! 💥' : 'MANILHA!';
-  cartaZapGrande.innerText = `${data.carta.valor}${data.carta.naipe}`;
-  if (data.carta.naipe === '♦' || data.carta.naipe === '♥') cartaZapGrande.classList.add('vermelho');
-  else cartaZapGrande.classList.remove('vermelho');
+  textoEfeitoZap.innerText =
+    data.isZap
+      ? '💥 ZAP! 💥'
+      : 'MANILHA!';
+
+  cartaZapGrande.innerText =
+    `${data.carta.valor}${data.carta.naipe}`;
+
+  if (
+    data.carta.naipe === '♦' ||
+    data.carta.naipe === '♥'
+  ) {
+    cartaZapGrande.classList.add('vermelho');
+  } else {
+    cartaZapGrande.classList.remove('vermelho');
+  }
 
   overlayZap.style.display = 'flex';
-  setTimeout(() => overlayZap.style.display = 'none', 1400);
+
+  setTimeout(
+    () => overlayZap.style.display = 'none',
+    1400
+  );
 });
 
 // Reconexão e Notificação
 socket.on('jogadorDesconectadoTemp', (data) => {
-  textoModalDesconexao.innerText = `${data.apelido} desconectou-se. Aguardando reconexão (30s)...`;
+  textoModalDesconexao.innerText =
+    `${data.apelido} desconectou-se. Aguardando reconexão (30s)...`;
+
   modalDesconexao.style.display = 'flex';
 });
 
-socket.on('jogadorReconectou', () => modalDesconexao.style.display = 'none');
+socket.on('jogadorReconectou', () =>
+  modalDesconexao.style.display = 'none'
+);
 
 socket.on('jogadorDesconectado', (data) => {
-  if (intervalTimer) clearInterval(intervalTimer);
+  if (intervalTimer)
+    clearInterval(intervalTimer);
+
   timerContainer.style.display = 'none';
-  textoModalDesconexao.innerText = `O jogador (${data.apelido}) desconectou-se.`;
+
+  textoModalDesconexao.innerText =
+    `O jogador (${data.apelido}) desconectou-se.`;
+
   modalDesconexao.style.display = 'flex';
 });
 
-btnConfirmarDesconexao.onclick = () => location.reload();
+btnConfirmarDesconexao.onclick = () =>
+  location.reload();
 
 function iniciarTimerTurno(segundos = 20) {
-  if (intervalTimer) clearInterval(intervalTimer);
+  if (intervalTimer)
+    clearInterval(intervalTimer);
+
   let restante = segundos;
+
   timerSpan.innerText = restante;
   timerContainer.style.display = 'block';
 
   intervalTimer = setInterval(() => {
     restante--;
+
     timerSpan.innerText = restante;
-    if (restante <= 0) clearInterval(intervalTimer);
+
+    if (restante <= 0)
+      clearInterval(intervalTimer);
   }, 1000);
 }
 
 socket.on('atualizarVez', (apelido) => {
   bloqueioJogada = false;
-  const statusEl = document.getElementById('status-vez');
+
+  const statusEl =
+    document.getElementById('status-vez');
 
   if (apelido.includes('Aguardando')) {
     statusEl.innerText = apelido;
+
     eMinhaVez = false;
+
     timerContainer.style.display = 'none';
-    if (intervalTimer) clearInterval(intervalTimer);
+
+    if (intervalTimer)
+      clearInterval(intervalTimer);
   } else {
-    statusEl.innerText = `Vez de: ${apelido}`;
-    eMinhaVez = (apelido === meuApelido);
+    statusEl.innerText =
+      `Vez de: ${apelido}`;
+
+    eMinhaVez =
+      apelido === meuApelido;
 
     if (eMinhaVez) {
       iniciarTimerTurno(20);
     } else {
       timerContainer.style.display = 'none';
-      if (intervalTimer) clearInterval(intervalTimer);
+
+      if (intervalTimer)
+        clearInterval(intervalTimer);
     }
   }
 });
 
 // Reações
 document.querySelectorAll('.btn-emoji').forEach(btn => {
-  btn.onclick = () => socket.emit('enviarReacao', btn.getAttribute('data-emoji'));
+  btn.onclick = () =>
+    socket.emit(
+      'enviarReacao',
+      btn.getAttribute('data-emoji')
+    );
 });
 
 socket.on('receberReacao', (data) => {
-  const container = document.getElementById('container-reacoes-mesa');
-  const el = document.createElement('div');
+  const container =
+    document.getElementById(
+      'container-reacoes-mesa'
+    );
+
+  const el =
+    document.createElement('div');
+
   el.className = 'emoji-flutuante';
+
   el.innerText = data.emoji;
-  el.style.left = `${Math.random() * 70 + 15}%`;
+
+  el.style.left =
+    `${Math.random() * 70 + 15}%`;
+
   el.style.top = '50%';
+
   container.appendChild(el);
-  setTimeout(() => el.remove(), 2000);
+
+  setTimeout(
+    () => el.remove(),
+    2000
+  );
 });
 
-socket.on('fimDePartida', (data) => alert(`🏆 Fim de partida! Vencedor: Time ${data.vencedor}`));
+// Fim da partida
+socket.on('fimDePartida', (data) => {
+  // Zera visualmente os pontos.
+  document.getElementById('pontos-a').innerText =
+    data.pontosA ?? 0;
+
+  document.getElementById('pontos-b').innerText =
+    data.pontosB ?? 0;
+
+  // Limpa as bolinhas das rodadas.
+  atualizarBolinhas([]);
+
+  // Limpa cartas da mesa.
+  document.getElementById('cartas-mesa').innerHTML = '';
+
+  // Limpa cartas do jogador.
+  document.getElementById('minhas-cartas').innerHTML = '';
+
+  // Fecha qualquer modal aberto.
+  modalTruco.style.display = 'none';
+  modalMao11.style.display = 'none';
+
+  aguardandoDecisaoMao11 = false;
+
+  // Esconde controles da mão encerrada.
+  btnPedirTruco.style.display = 'none';
+  btnCorrerRodada.style.display = 'none';
+
+  eMinhaVez = false;
+  bloqueioJogada = false;
+
+  alert(
+    `🏆 Fim de partida! Vencedor: Time ${data.vencedor}`
+  );
+});
