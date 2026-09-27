@@ -2,17 +2,28 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// CORREÇÃO: Serve os arquivos estáticos diretamente da raiz do projeto
+// Serve ficheiros estáticos da raiz e da pasta public
 app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Rota principal para garantir o envio do index.html
+// Rota principal flexível para carregar o index.html
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  const rootIndex = path.join(__dirname, 'index.html');
+  const publicIndex = path.join(__dirname, 'public', 'index.html');
+
+  if (fs.existsSync(rootIndex)) {
+    res.sendFile(rootIndex);
+  } else if (fs.existsSync(publicIndex)) {
+    res.sendFile(publicIndex);
+  } else {
+    res.status(404).send('Ficheiro index.html não foi encontrado na raiz nem na pasta public.');
+  }
 });
 
 const NAIPES = ['♦', '♠', '♥', '♣']; 
@@ -480,6 +491,5 @@ io.on('connection', (socket) => {
   });
 });
 
-// CORREÇÃO: Garante o uso da porta definida pelas variáveis de ambiente do Render
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`Servidor rodando na porta ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Servidor a executar na porta ${PORT}`));
