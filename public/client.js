@@ -57,7 +57,6 @@ const btnCopiarLink = document.getElementById('btn-copiar-link');
 const selectTemaMesa = document.getElementById('select-tema-mesa');
 const btnAdicionarBot = document.getElementById('btn-adicionar-bot');
 const btnIniciarPartida = document.getElementById('btn-iniciar-partida');
-const btnProntoLobby = document.getElementById('btn-pronto-lobby');
 
 const btnPedirTruco = document.getElementById('btn-pedir-truco');
 const modalTruco = document.getElementById('modal-truco');
@@ -198,6 +197,13 @@ socket.on('sucessoEntrada', (data) => {
   appContainer.style.display = 'flex';
   btnToggleChat.style.display = 'flex';
 
+  // REGRA 4: Botão de convite visível APENAS para o criador da sala
+  if (souDonoSala) {
+    btnAbrirQRCode.style.display = 'inline-block';
+  } else {
+    btnAbrirQRCode.style.display = 'none';
+  }
+
   document.getElementById('label-nome-sala').innerText = data.nomeSala;
   document.getElementById('meu-info').innerText = `${meuAvatar} ${meuApelido} (Time ${meuTime})`;
 });
@@ -209,30 +215,22 @@ socket.on('atualizarJogadores', (data) => {
   document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
   document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
 
-  // Controle do Lobby de Ações
+  // REGRA 1: Sem botão de 'Estou pronto', apenas 'Iniciar Partida' para o dono da sala
   if (!jogoIniciado) {
     if (souDonoSala) {
       btnAdicionarBot.style.display = jogadores.length < 4 ? 'inline-block' : 'none';
       btnIniciarPartida.style.display = jogadores.length >= 2 ? 'inline-block' : 'none';
-      btnProntoLobby.style.display = 'none';
     } else {
       btnAdicionarBot.style.display = 'none';
       btnIniciarPartida.style.display = 'none';
-      btnProntoLobby.style.display = 'inline-block';
     }
   } else {
     btnAdicionarBot.style.display = 'none';
     btnIniciarPartida.style.display = 'none';
-    btnProntoLobby.style.display = 'none';
   }
 });
 
 btnAdicionarBot.onclick = () => socket.emit('adicionarBot');
-
-btnProntoLobby.onclick = () => {
-  btnProntoLobby.style.display = 'none';
-  socket.emit('jogadorPronto');
-};
 
 btnIniciarPartida.onclick = () => socket.emit('solicitarInicioPartida');
 
@@ -259,7 +257,15 @@ socket.on('atualizarTrofeus', (data) => {
 btnPedirTruco.onclick = () => socket.emit('pedirTruco');
 
 socket.on('solicitacaoTruco', (data) => {
-  falarTexto(`${data.pediuApelido} pediu truco!`);
+  // REGRA 2: Falar exatamente o valor pedido (Truco, Seis, Nove, Doze)
+  let textoVoz = 'pediu truco!';
+  if (data.valorProposto === 6) textoVoz = 'pediu seis!';
+  else if (data.valorProposto === 9) textoVoz = 'pediu nove!';
+  else if (data.valorProposto === 12) textoVoz = 'pediu doze!';
+
+  falarTexto(`${data.pediuApelido} ${textoVoz}`);
+
+  // REGRA 3: Mostra a janela de aceitar/correr/aumentar para os adversários
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
     let rotulo = 'TRUCO!';
