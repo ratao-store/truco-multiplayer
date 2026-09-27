@@ -1,19 +1,76 @@
 const socket = io();
 
+// Elementos Login
+const cardEntrar = document.getElementById('card-entrar');
+const cardCriar = document.getElementById('card-criar');
+
+const btnAbrirCriar = document.getElementById('btn-abrir-criar');
+const btnVoltarEntrar = document.getElementById('btn-voltar-entrar');
+
+const btnEntrar = document.getElementById('btn-entrar');
+const btnConfirmarCriar = document.getElementById('btn-confirmar-criar');
+
+// Elementos Jogo
 const loginContainer = document.getElementById('login-container');
 const appContainer = document.getElementById('app');
 
-const btnEntrar = document.getElementById('btn-entrar');
-const inputApelido = document.getElementById('input-apelido');
-const inputSala = document.getElementById('input-sala');
-const selectJogadores = document.getElementById('select-jogadores');
+const btnPedirTruco = document.getElementById('btn-pedir-truco');
+const modalTruco = document.getElementById('modal-truco');
+const textoTrucoPedido = document.getElementById('texto-truco-pedido');
+const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
+const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
+const btnCorrerTruco = document.getElementById('btn-correr-truco');
 
+let meuApelido = '';
+let meuTime = '';
+let valorMaoAtual = 1;
+let trucoPendenteLocal = null;
+
+// Alternar Telas Login / Criar
+btnAbrirCriar.onclick = () => {
+  cardEntrar.style.display = 'none';
+  cardCriar.style.display = 'block';
+};
+
+btnVoltarEntrar.onclick = () => {
+  cardCriar.style.display = 'none';
+  cardEntrar.style.display = 'block';
+};
+
+// Ações Entrada
 btnEntrar.onclick = () => {
-  const apelido = inputApelido.value.trim() || 'Jogador_' + Math.floor(100 + Math.random() * 900);
-  const nomeSala = inputSala.value.trim() || 'sala-geral';
-  const maxJogadores = selectJogadores.value;
+  const apelido = document.getElementById('input-apelido').value.trim();
+  const nomeSala = document.getElementById('input-sala').value.trim();
 
-  socket.emit('entrarOuCriarSala', { apelido, nomeSala, maxJogadores });
+  if (!apelido) {
+    alert('Por favor, digite o seu apelido!');
+    return;
+  }
+
+  if (!nomeSala) {
+    alert('Por favor, digite o nome da sala!');
+    return;
+  }
+
+  socket.emit('entrarSala', { apelido, nomeSala });
+};
+
+btnConfirmarCriar.onclick = () => {
+  const apelido = document.getElementById('input-criar-apelido').value.trim();
+  const nomeSala = document.getElementById('input-criar-sala').value.trim();
+  const maxJogadores = document.getElementById('select-max-jogadores').value;
+
+  if (!apelido) {
+    alert('Por favor, digite o seu apelido!');
+    return;
+  }
+
+  if (!nomeSala) {
+    alert('Por favor, digite um nome para a nova sala!');
+    return;
+  }
+
+  socket.emit('criarSala', { apelido, nomeSala, maxJogadores });
 };
 
 socket.on('erroEntrada', (msg) => {
@@ -21,11 +78,14 @@ socket.on('erroEntrada', (msg) => {
 });
 
 socket.on('sucessoEntrada', (data) => {
+  meuApelido = data.apelido;
+  meuTime = data.time;
+
   loginContainer.style.display = 'none';
   appContainer.style.display = 'flex';
   
   document.getElementById('label-nome-sala').innerText = data.nomeSala;
-  document.getElementById('meu-info').innerText = `${data.apelido} (Time ${data.time})`;
+  document.getElementById('meu-info').innerText = `${meuApelido} (Time ${meuTime})`;
 });
 
 socket.on('atualizarJogadores', (jogadores) => {
@@ -36,10 +96,81 @@ socket.on('atualizarJogadores', (jogadores) => {
   document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
 });
 
+socket.on('atualizarTrofeus', (data) => {
+  document.getElementById('trofeus-a').innerText = `🏆 ${data.a}`;
+  document.getElementById('trofeus-b').innerText = `🏆 ${data.b}`;
+});
+
+// Truco Controles
+btnPedirTruco.onclick = () => {
+  socket.emit('pedirTruco');
+};
+
+socket.on('solicitacaoTruco', (data) => {
+  trucoPendenteLocal = data;
+  
+  if (data.pediuTime !== meuTime) {
+    modalTruco.style.display = 'block';
+    let rotulo = 'TRUCO!';
+    if (data.valorProposto === 6) rotulo = 'SEIS!';
+    if (data.valorProposto === 9) rotulo = 'NOVE!';
+    if (data.valorProposto === 12) rotulo = 'DOZE!';
+
+    textoTrucoPedido.innerText = `${data.pediuApelido} pediu ${rotulo}`;
+
+    if (data.valorProposto >= 12) {
+      btnAumentarTruco.style.display = 'none';
+    } else {
+      btnAumentarTruco.style.display = 'inline-block';
+      let proximoRotulo = data.valorProposto === 3 ? 'Pedir 6' : (data.valorProposto === 6 ? 'Pedir 9' : 'Pedir 12');
+      btnAumentarTruco.innerText = proximoRotulo;
+    }
+  } else {
+    document.getElementById('status-vez').innerText = `Aguardando resposta do Truco...`;
+  }
+});
+
+btnAceitarTruco.onclick = () => {
+  modalTruco.style.display = 'none';
+  socket.emit('respostaTruco', true);
+};
+
+btnCorrerTruco.onclick = () => {
+  modalTruco.style.display = 'none';
+  socket.emit('respostaTruco', false);
+};
+
+btnAumentarTruco.onclick = () => {
+  modalTruco.style.display = 'none';
+  socket.emit('respostaTruco', true);
+  socket.emit('pedirTruco');
+};
+
+socket.on('trucoAceito', (data) => {
+  valorMaoAtual = data.valorMao;
+  document.getElementById('label-valor-mao').innerText = valorMaoAtual;
+  
+  let textoBtn = 'TRUCO!';
+  if (valorMaoAtual === 3) textoBtn = 'SEIS!';
+  if (valorMaoAtual === 6) textoBtn = 'NOVE!';
+  if (valorMaoAtual === 9) textoBtn = '12!';
+  btnPedirTruco.innerText = textoBtn;
+
+  if (valorMaoAtual >= 12) {
+    btnPedirTruco.style.display = 'none';
+  }
+});
+
 socket.on('novaMao', (data) => {
+  valorMaoAtual = data.valorMao;
+  document.getElementById('label-valor-mao').innerText = valorMaoAtual;
   document.getElementById('pontos-a').innerText = data.pontosA;
   document.getElementById('pontos-b').innerText = data.pontosB;
   document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
+
+  modalTruco.style.display = 'none';
+  btnPedirTruco.style.display = 'inline-block';
+  btnPedirTruco.innerText = 'TRUCO!';
 
   const viraEl = document.getElementById('carta-vira');
   viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
@@ -79,6 +210,6 @@ socket.on('atualizarVez', (apelido) => {
   document.getElementById('status-vez').innerText = apelido.includes('Aguardando') ? apelido : `Vez de: ${apelido}`;
 });
 
-socket.on('fimDeJogo', (data) => {
-  alert(`Fim de jogo! Vencedores: ${data.vencedor}`);
+socket.on('fimDePartida', (data) => {
+  alert(`🏆 Fim de partida (12 Pts)! Vencedor: ${data.vencedor}\nA partida será reiniciada mantendo os troféus!`);
 });
