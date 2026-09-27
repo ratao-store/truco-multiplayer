@@ -386,7 +386,6 @@ header {
   color: var(--gold-primary);
 }
 
-/* BOLINHAS DAS RODADAS DA MÃO - CORES DINÂMICAS */
 .bolinhas-rodada {
   display: flex;
   justify-content: center;
@@ -532,7 +531,26 @@ footer {
 }
 
 .controles-jogador {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-esconder {
+  font-size: 0.9rem;
+  color: #f1c40f;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(241, 196, 15, 0.4);
+  cursor: pointer;
+}
+
+.toggle-esconder input {
+  margin-right: 6px;
+  cursor: pointer;
 }
 
 .btn-truco-action {
@@ -543,10 +561,10 @@ footer {
   border-radius: 25px;
 }
 
-/* MODAL DE RESPOSTA DO TRUCO */
+/* MODAIS DE RESPOSTA DO TRUCO E MÃO DE 11 */
 .modal-truco {
   position: absolute;
-  top: -110px;
+  top: -125px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(15, 15, 15, 0.95);
@@ -559,7 +577,7 @@ footer {
 }
 
 .modal-truco p {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: bold;
   margin-bottom: 12px;
 }
