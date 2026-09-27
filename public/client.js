@@ -21,11 +21,16 @@ const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
 const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
 const btnCorrerTruco = document.getElementById('btn-correr-truco');
 
+// Overlay Zap
+const overlayZap = document.getElementById('overlay-zap');
+const textoEfeitoZap = document.getElementById('texto-efeito-zap');
+const cartaZapGrande = document.getElementById('carta-zap-grande');
+
 let meuApelido = '';
 let meuTime = '';
 let valorMaoAtual = 1;
 
-// Alternar Telas Login / Criar
+// Alternar Login
 btnAbrirCriar.onclick = () => {
   cardEntrar.style.display = 'none';
   cardCriar.style.display = 'block';
@@ -36,18 +41,12 @@ btnVoltarEntrar.onclick = () => {
   cardEntrar.style.display = 'block';
 };
 
-// Ações Entrada com validação obrigatória
 btnEntrar.onclick = () => {
   const apelido = document.getElementById('input-apelido').value.trim();
   const nomeSala = document.getElementById('input-sala').value.trim();
 
-  if (!apelido) {
-    alert('Por favor, digite o seu apelido!');
-    return;
-  }
-
-  if (!nomeSala) {
-    alert('Por favor, digite o nome da sala!');
+  if (!apelido || !nomeSala) {
+    alert('Por favor, preencha o apelido e o nome da sala!');
     return;
   }
 
@@ -59,22 +58,15 @@ btnConfirmarCriar.onclick = () => {
   const nomeSala = document.getElementById('input-criar-sala').value.trim();
   const maxJogadores = document.getElementById('select-max-jogadores').value;
 
-  if (!apelido) {
-    alert('Por favor, digite o seu apelido!');
-    return;
-  }
-
-  if (!nomeSala) {
-    alert('Por favor, digite um nome para a nova sala!');
+  if (!apelido || !nomeSala) {
+    alert('Por favor, preencha o apelido e o nome da nova sala!');
     return;
   }
 
   socket.emit('criarSala', { apelido, nomeSala, maxJogadores });
 };
 
-socket.on('erroEntrada', (msg) => {
-  alert(msg);
-});
+socket.on('erroEntrada', (msg) => alert(msg));
 
 socket.on('sucessoEntrada', (data) => {
   meuApelido = data.apelido;
@@ -100,12 +92,10 @@ socket.on('atualizarTrofeus', (data) => {
   document.getElementById('trofeus-b').innerText = `🏆 ${data.b}`;
 });
 
-// Ação de pedir Truco / Seis / Nove / Doze
 btnPedirTruco.onclick = () => {
   socket.emit('pedirTruco');
 };
 
-// Recebe a solicitação de Truco enviada por outro jogador
 socket.on('solicitacaoTruco', (data) => {
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
@@ -132,7 +122,6 @@ socket.on('solicitacaoTruco', (data) => {
   }
 });
 
-// Respostas ao pedido
 btnAceitarTruco.onclick = () => {
   modalTruco.style.display = 'none';
   socket.emit('respostaTruco', true);
@@ -146,7 +135,7 @@ btnCorrerTruco.onclick = () => {
 btnAumentarTruco.onclick = () => {
   modalTruco.style.display = 'none';
   socket.emit('respostaTruco', true);
-  socket.emit('pedirTruco'); // Faz a solicitação do próximo nível imediatamente
+  socket.emit('pedirTruco');
 };
 
 socket.on('trucoAceito', (data) => {
@@ -164,6 +153,21 @@ socket.on('trucoAceito', (data) => {
   }
 });
 
+function atualizarBolinhas(rodadasGanhas) {
+  const bolinhasA = document.querySelectorAll('#bolinhas-a .bolinha');
+  const bolinhasB = document.querySelectorAll('#bolinhas-b .bolinha');
+
+  bolinhasA.forEach((b, idx) => {
+    if (idx < rodadasGanhas.A) b.classList.add('ativa');
+    else b.classList.remove('ativa');
+  });
+
+  bolinhasB.forEach((b, idx) => {
+    if (idx < rodadasGanhas.B) b.classList.add('ativa');
+    else b.classList.remove('ativa');
+  });
+}
+
 socket.on('novaMao', (data) => {
   valorMaoAtual = data.valorMao;
   document.getElementById('label-valor-mao').innerText = valorMaoAtual;
@@ -172,26 +176,49 @@ socket.on('novaMao', (data) => {
   document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
 
   modalTruco.style.display = 'none';
-  btnPedirTruco.style.display = 'inline-block';
-  btnPedirTruco.innerText = 'TRUCO!';
+
+  // REGRA DE 11 PONTOS: Bloqueia botão de Truco na mão de 11
+  if (data.pontosA === 11 || data.pontosB === 11) {
+    btnPedirTruco.style.display = 'none';
+  } else {
+    btnPedirTruco.style.display = 'inline-block';
+    btnPedirTruco.innerText = 'TRUCO!';
+  }
+
+  atualizarBolinhas({ A: 0, B: 0 });
 
   const viraEl = document.getElementById('carta-vira');
-  viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
-  if (data.vira.naipe === '♦' || data.vira.naipe === '♥') {
-    viraEl.classList.add('vermelho');
+  if (data.maoDeFerro) {
+    viraEl.innerText = '🂠';
+    viraEl.className = 'carta vira escuro';
   } else {
-    viraEl.classList.remove('vermelho');
+    viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
+    viraEl.className = 'carta vira' + (data.vira.naipe === '♦' || data.vira.naipe === '♥' ? ' vermelho' : '');
   }
 });
 
-socket.on('minhasCartas', (cartas) => {
+socket.on('atualizarRodadasMao', (rodadasGanhas) => {
+  atualizarBolinhas(rodadasGanhas);
+});
+
+socket.on('minhasCartas', (data) => {
   const container = document.getElementById('minhas-cartas');
   container.innerHTML = '';
 
+  const cartas = data.cartas;
+  const noEscuro = data.noEscuro;
+
   cartas.forEach((c, index) => {
     const cardEl = document.createElement('div');
-    cardEl.className = 'carta' + (c.naipe === '♦' || c.naipe === '♥' ? ' vermelho' : '');
-    cardEl.innerText = `${c.valor}${c.naipe}`;
+
+    if (noEscuro) {
+      cardEl.className = 'carta escuro';
+      cardEl.innerText = '🂠';
+    } else {
+      cardEl.className = 'carta' + (c.naipe === '♦' || c.naipe === '♥' ? ' vermelho' : '');
+      cardEl.innerText = `${c.valor}${c.naipe}`;
+    }
+
     cardEl.onclick = () => socket.emit('jogarCarta', index);
     container.appendChild(cardEl);
   });
@@ -207,6 +234,24 @@ socket.on('atualizarMesa', (cartasMesa) => {
     cardEl.innerText = `${item.carta.valor}${item.carta.naipe}`;
     container.appendChild(cardEl);
   });
+});
+
+// Efeito Visual do Zap / Manilha na Tela Quebrada
+socket.on('efeitoManilhaZap', (data) => {
+  textoEfeitoZap.innerText = data.isZap ? '💥 ZAP! 💥' : 'MANILHA!';
+  cartaZapGrande.innerText = `${data.carta.valor}${data.carta.naipe}`;
+
+  if (data.carta.naipe === '♦' || data.carta.naipe === '♥') {
+    cartaZapGrande.classList.add('vermelho');
+  } else {
+    cartaZapGrande.classList.remove('vermelho');
+  }
+
+  overlayZap.style.display = 'flex';
+
+  setTimeout(() => {
+    overlayZap.style.display = 'none';
+  }, 1600);
 });
 
 socket.on('atualizarVez', (apelido) => {
