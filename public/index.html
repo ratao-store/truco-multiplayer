@@ -38,17 +38,54 @@
     </div>
   </div>
 
-  <!-- MODAL DE REGRAS DO TRUCO PAULISTA -->
+  <!-- MODAL DE REGRAS DO TRUCO PAULISTA COMPLETO -->
   <div id="modal-regras" class="modal-overlay" style="display: none;">
     <div class="modal-card modal-regras-card">
       <button id="btn-fechar-regras" class="btn-fechar">&times;</button>
-      <h2>Regras do Truco</h2>
+      <h2>Regras do Truco Paulista</h2>
       <div class="conteudo-regras">
-        <h3>1. Objetivo e Baralho</h3>
-        <p>Jogado com 40 cartas (sem 8, 9, 10 e Curingas). A partida termina quando uma dupla atinge <strong>12 pontos</strong>.</p>
-        <h3>2. Hierarquia e Manilhas</h3>
-        <p><strong>Cartas comuns:</strong> 4 &lt; 5 &lt; 6 &lt; 7 &lt; Q &lt; J &lt; K &lt; A &lt; 2 &lt; 3</p>
-        <p><strong>Manilhas:</strong> ♣ (Zap) &gt; ♥ (Copas) &gt; ♠ (Espadilha) &gt; ♦ (Ouros)</p>
+        <h3>1. Baralho e Objetivo</h3>
+        <p>O Truco Paulista é jogado com o baralho limpo (sem as cartas 8, 9, 10 e Curingas). O objetivo da partida é atingir <strong>12 pontos</strong> antes da dupla adversária.</p>
+
+        <h3>2. O Vira e as Manilhas</h3>
+        <p>A cada mão, vira-se uma carta da mesa (o <strong>Vira</strong>). As manilhas são as cartas imediatamente superiores ao Vira na ordem do jogo (4, 5, 6, 7, Q, J, K, A, 2, 3).</p>
+        <p><strong>Força fixa dos Naipes para as Manilhas (da mais forte para a mais fraca):</strong></p>
+        <ul>
+          <li>♣ <strong>Paus</strong> (Zap - A manilha suprema)</li>
+          <li>♥ <strong>Copas</strong> (Copilha)</li>
+          <li>♠ <strong>Espadas</strong> (Espadilha)</li>
+          <li>♦ <strong>Ouros</strong> (Pica-fumo)</li>
+        </ul>
+
+        <h3>3. Hierarquia das Cartas Normais</h3>
+        <p>Para as cartas que não são manilhas na rodada, a ordem de força decrescente é:</p>
+        <p><strong>3 &gt; 2 &gt; A &gt; K &gt; J &gt; Q &gt; 7 &gt; 6 &gt; 5 &gt; 4</strong></p>
+
+        <h3>4. Estrutura da Mão e Empates (Cangandô)</h3>
+        <p>Cada mão é disputada em até 3 rodadas ("vazadas"). A dupla que vencer 2 rodadas ganha a mão.</p>
+        <ul>
+          <li><strong>Empate na 1ª rodada:</strong> Quem vencer a 2ª rodada ganha a mão.</li>
+          <li><strong>Empate na 2ª rodada:</strong> A dupla que venceu a 1ª rodada ganha a mão.</li>
+          <li><strong>Empate na 3ª rodada:</strong> A dupla que venceu a 1ª rodada ganha a mão.</li>
+          <li><strong>Empate em todas as rodadas:</strong> Ninguém pontua e uma nova mão é iniciada.</li>
+        </ul>
+
+        <h3>5. Aumentos de Aposta (Truco, 6, 9 e 12)</h3>
+        <p>A mão começa valendo 1 ponto. Na sua vez, qualquer jogador pode solicitar o aumento:</p>
+        <ul>
+          <li><strong>Truco:</strong> Eleva o valor da mão para 3 pontos.</li>
+          <li><strong>Seis:</strong> Eleva o valor da mão para 6 pontos.</li>
+          <li><strong>Nove:</strong> Eleva o valor da mão para 9 pontos.</li>
+          <li><strong>Doze:</strong> Eleva o valor da mão para 12 pontos.</li>
+        </ul>
+        <p>Se o adversário <strong>correr</strong> (fugir), a equipe que pediu ganha os pontos acumulados até aquele momento.</p>
+
+        <h3>6. Mão de 11</h3>
+        <p>Quando uma das equipes atinge 11 pontos, ocorre a Mão de 11. Os parceiros podem olhar as cartas um do outro antes de jogar e decidir se vão jogar (valendo 3 pontos) ou fugir (cedendo 1 ponto ao adversário).</p>
+        <p><strong>Atenção:</strong> É proibido pedir Truco na Mão de 11. Pedir Truco na Mão de 11 faz com que a dupla perca a partida imediatamente.</p>
+
+        <h3>7. Mão de Ferro (11 x 11)</h3>
+        <p>Quando a partida fica empatada em 11 x 11, é jogada a Mão de Ferro. As cartas são distribuídas viradas para baixo e jogadas no "escuro", sem que nenhum jogador veja as próprias cartas. Não é permitido pedir Truco.</p>
       </div>
     </div>
   </div>
@@ -170,7 +207,7 @@
           Sala: <span id="label-nome-sala"></span> | Valendo: <span id="label-valor-mao" class="destaque">1</span> Pt(s)
         </div>
         <div class="header-botoes">
-          <button id="btn-abrir-qrcode" class="btn-regras">📱 Convite</button>
+          <button id="btn-abrir-qrcode" class="btn-regras" style="display:none;">📱 Convite</button>
           <select id="select-tema-mesa" class="select-tema">
             <option value="tema-verde">🌿 Filtro</option>
             <option value="tema-neon">🌆 Neon</option>
@@ -213,7 +250,6 @@
         <!-- PAINEL DE AÇÕES DE PREPARAÇÃO/START -->
         <div id="painel-lobby-acoes" style="display:flex; gap:6px;">
           <button id="btn-adicionar-bot" class="btn-secondary" style="display:none; width:auto; padding:4px 8px; margin:0; font-size:0.8rem;">🤖 + Bot</button>
-          <button id="btn-pronto-lobby" class="btn-primary" style="display:none; width:auto; padding:4px 10px; margin:0; font-size:0.8rem;">👍 Estou Pronto</button>
           <button id="btn-iniciar-partida" class="btn-primary" style="display:none; width:auto; padding:4px 10px; margin:0; font-size:0.8rem; background: var(--green-btn);">🚀 Iniciar Partida</button>
         </div>
 
