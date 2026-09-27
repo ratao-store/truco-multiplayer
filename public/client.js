@@ -59,6 +59,7 @@ const btnAdicionarBot = document.getElementById('btn-adicionar-bot');
 const btnIniciarPartida = document.getElementById('btn-iniciar-partida');
 
 const btnPedirTruco = document.getElementById('btn-pedir-truco');
+const btnCorrerRodada = document.getElementById('btn-correr-rodada');
 const modalTruco = document.getElementById('modal-truco');
 const textoTrucoPedido = document.getElementById('texto-truco-pedido');
 const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
@@ -197,7 +198,6 @@ socket.on('sucessoEntrada', (data) => {
   appContainer.style.display = 'flex';
   btnToggleChat.style.display = 'flex';
 
-  // REGRA 4: Botão de convite visível APENAS para o criador da sala
   if (souDonoSala) {
     btnAbrirQRCode.style.display = 'inline-block';
   } else {
@@ -215,7 +215,6 @@ socket.on('atualizarJogadores', (data) => {
   document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
   document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
 
-  // REGRA 1: Sem botão de 'Estou pronto', apenas 'Iniciar Partida' para o dono da sala
   if (!jogoIniciado) {
     if (souDonoSala) {
       btnAdicionarBot.style.display = jogadores.length < 4 ? 'inline-block' : 'none';
@@ -255,9 +254,13 @@ socket.on('atualizarTrofeus', (data) => {
 });
 
 btnPedirTruco.onclick = () => socket.emit('pedirTruco');
+btnCorrerRodada.onclick = () => {
+  if (confirm('Deseja realmente correr desta mão?')) {
+    socket.emit('correrVoluntario');
+  }
+};
 
 socket.on('solicitacaoTruco', (data) => {
-  // REGRA 2: Falar exatamente o valor pedido (Truco, Seis, Nove, Doze)
   let textoVoz = 'pediu truco!';
   if (data.valorProposto === 6) textoVoz = 'pediu seis!';
   else if (data.valorProposto === 9) textoVoz = 'pediu nove!';
@@ -265,7 +268,6 @@ socket.on('solicitacaoTruco', (data) => {
 
   falarTexto(`${data.pediuApelido} ${textoVoz}`);
 
-  // REGRA 3: Mostra a janela de aceitar/correr/aumentar para os adversários
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
     let rotulo = 'TRUCO!';
@@ -300,7 +302,7 @@ socket.on('atualizarEstadoTruco', (data) => {
 
   const podeAumentar = (data.ultimoPediuTime !== meuTime) && !data.bloqueado && valorMaoAtual < 12;
 
-  if (podeAumentar) {
+  if (podeAumentar && !data.isMaoDe11 && !data.maoDeFerro) {
     btnPedirTruco.style.display = 'inline-block';
     if (valorMaoAtual === 1) btnPedirTruco.innerText = 'TRUCO!';
     else if (valorMaoAtual === 3) btnPedirTruco.innerText = 'SEIS!';
@@ -355,6 +357,8 @@ socket.on('novaMao', (data) => {
 
     modalTruco.style.display = 'none';
     modalMao11.style.display = 'none';
+
+    btnCorrerRodada.style.display = 'inline-block';
 
     if (data.isMaoDe11 || data.maoDeFerro) {
       btnPedirTruco.style.display = 'none';
