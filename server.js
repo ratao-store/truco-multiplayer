@@ -19,7 +19,7 @@ const FORCA_CARTA = {
   '2': 9, '3': 10
 };
 
-// Ordem dos Quatro Paus do Truco Paulista (Regra 2)
+// Ordem dos Quatro Paus do Truco Paulista
 const FORCA_NAIPE = {
   '♣': 4, // Zap (Mais forte)
   '♥': 3, // Copas
@@ -37,7 +37,6 @@ function criarBaralho() {
   return baralho.sort(() => Math.random() - 0.5);
 }
 
-// Manilha Variável (Carta imediatamente superior ao vira)
 function proximaCarta(valor) {
   const idx = VALORES.indexOf(valor);
   return VALORES[(idx + 1) % VALORES.length];
@@ -59,7 +58,7 @@ function iniciarNovaMao(nomeSala) {
   sala.valorManilha = proximaCarta(sala.vira.valor);
   sala.valorMao = 1;
   sala.trucoPendente = null;
-  sala.ultimoPediuTime = null; // Zera o controle de aumento da mão
+  sala.ultimoPediuTime = null;
   sala.jogadasRodadaAtual = [];
   sala.rodadasGanhas = { A: 0, B: 0 };
   sala.historicoRodadas = [];
@@ -79,7 +78,10 @@ function iniciarNovaMao(nomeSala) {
   } else {
     sala.indiceIniciadorMao = (sala.indiceIniciadorMao + 1) % sala.jogadores.length;
   }
+  
+  // Define quem começa a primeira rodada da mão
   sala.indiceVez = sala.indiceIniciadorMao;
+  sala.primeiroDaRodadaAtual = sala.indiceIniciadorMao;
 
   sala.jogadores.forEach(j => {
     if (j.id) {
@@ -118,7 +120,6 @@ function iniciarNovaMao(nomeSala) {
   io.to(nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
 }
 
-// Regras de Empate / Canga (Regra 3)
 function verificarFimMao(nomeSala) {
   const sala = salas[nomeSala];
   let timeVencedorMao = null;
@@ -157,7 +158,9 @@ function verificarFimMao(nomeSala) {
     }
 
     iniciarNovaMao(nomeSala);
+    return true;
   }
+  return false;
 }
 
 io.on('connection', (socket) => {
@@ -254,6 +257,8 @@ io.on('connection', (socket) => {
     }
 
     sala.jogadasRodadaAtual.push({
+      jogadorId: socket.id,
+      jogadorIndex: sala.indiceVez,
       jogador: jogador.apelido,
       time: jogador.time,
       carta: cartaJogada,
@@ -266,8 +271,8 @@ io.on('connection', (socket) => {
     });
 
     io.to(socket.nomeSala).emit('atualizarMesa', sala.jogadasRodadaAtual);
-    sala.indiceVez = (sala.indiceVez + 1) % sala.jogadores.length;
 
+    // Se todos os jogadores já jogaram na rodada atual
     if (sala.jogadasRodadaAtual.length === sala.jogadores.length) {
       setTimeout(() => {
         let maiorForca = -1;
@@ -277,36 +282,47 @@ io.on('connection', (socket) => {
         sala.jogadasRodadaAtual.forEach(j => {
           let f = j.escondida ? 0 : calcularForca(j.carta, sala.valorManilha);
           if (f > maiorForca) {
-            maiorForca = f; vencedorJogada = j; empate = false;
+            maiorForca = f; 
+            vencedorJogada = j; 
+            empate = false;
           } else if (f === maiorForca) {
             empate = true;
           }
         });
 
-        if (empate) sala.historicoRodadas.push('Empate');
-        else {
+        if (empate) {
+          sala.historicoRodadas.push('Empate');
+          // Em caso de canga (empate), torna quem começou a rodada anterior
+          sala.indiceVez = sala.primeiroDaRodadaAtual;
+        } else {
           sala.rodadasGanhas[vencedorJogada.time] += 1;
           sala.historicoRodadas.push(vencedorJogada.time);
+          
+          // REGRA CORRIGIDA: Quem matou a carta (venceu a rodada) joga primeiro na próxima
+          sala.indiceVez = vencedorJogada.jogadorIndex;
+          sala.primeiroDaRodadaAtual = vencedorJogada.jogadorIndex;
         }
 
         io.to(socket.nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
         sala.jogadasRodadaAtual = [];
         io.to(socket.nomeSala).emit('atualizarMesa', []);
 
-        verificarFimMao(socket.nomeSala);
-        if (sala.emAndamento) io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
+        const terminouMao = verificarFimMao(socket.nomeSala);
+        if (sala.emAndamento && !terminouMao) {
+          io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
+        }
       }, 1500);
     } else {
+      // Passa a vez para o próximo jogador dentro da mesma rodada
+      sala.indiceVez = (sala.indiceVez + 1) % sala.jogadores.length;
       io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
     }
   });
 
-  // SISTEMA DE APOSTA E ALTERNÂNCIA RIGOROSA (Regra 4 e 5)
   socket.on('pedirTruco', () => {
     const sala = salas[socket.nomeSala];
     if (!sala || !sala.emAndamento || sala.aguardandoMao11 || sala.trucoPendente) return;
 
-    // Regra 5: Proibido trucar na Mão de 11 (Perde a partida instantaneamente)
     if (sala.pontos.A === 11 || sala.pontos.B === 11) {
       const timeAdversario = socket.time === 'A' ? 'B' : 'A';
       sala.trofeus[timeAdversario] += 1;
@@ -317,7 +333,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Regra de Alternância: Não pode pedir aumento se sua dupla foi a última a pedir
     if (sala.ultimoPediuTime === socket.time) return;
 
     let proximoValor = 3;
@@ -349,7 +364,7 @@ io.on('connection', (socket) => {
       else if (valorPropostoAtual === 9) proximoValor = 12;
 
       sala.valorMao = valorPropostoAtual;
-      sala.ultimoPediuTime = socket.time; // Transfere o bloqueio/direito de pedido
+      sala.ultimoPediuTime = socket.time;
 
       sala.trucoPendente = {
         pediuTime: socket.time,
@@ -363,7 +378,7 @@ io.on('connection', (socket) => {
 
     if (aceitou) {
       sala.valorMao = valorPropostoAtual;
-      sala.ultimoPediuTime = timeQuePediuAnterior; // Registra a dupla que solicitou o último aumento
+      sala.ultimoPediuTime = timeQuePediuAnterior;
       sala.trucoPendente = null;
 
       io.to(socket.nomeSala).emit('atualizarEstadoTruco', {
