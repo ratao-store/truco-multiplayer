@@ -1,6 +1,46 @@
 const socket = io();
 
-// Login
+// Contexto de Áudio para Efeitos Sonoros
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playSoundPlayCard() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.12);
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.12);
+}
+
+function playSoundTurnNotification() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+  osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.25);
+}
+
+// Elementos DOM
 const cardEntrar = document.getElementById('card-entrar');
 const cardCriar = document.getElementById('card-criar');
 const btnAbrirCriar = document.getElementById('btn-abrir-criar');
@@ -8,14 +48,12 @@ const btnVoltarEntrar = document.getElementById('btn-voltar-entrar');
 const btnEntrar = document.getElementById('btn-entrar');
 const btnConfirmarCriar = document.getElementById('btn-confirmar-criar');
 
-// App & Regras
 const loginContainer = document.getElementById('login-container');
 const appContainer = document.getElementById('app');
 const modalRegras = document.getElementById('modal-regras');
 const btnAbrirRegras = document.getElementById('btn-abrir-regras');
 const btnFecharRegras = document.getElementById('btn-fechar-regras');
 
-// Truco Controles
 const btnPedirTruco = document.getElementById('btn-pedir-truco');
 const modalTruco = document.getElementById('modal-truco');
 const textoTrucoPedido = document.getElementById('texto-truco-pedido');
@@ -23,41 +61,41 @@ const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
 const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
 const btnCorrerTruco = document.getElementById('btn-correr-truco');
 
-// Mão de 11 Controles
 const modalMao11 = document.getElementById('modal-mao11');
 const btnAceitarMao11 = document.getElementById('btn-aceitar-mao11');
 const btnCorrerMao11 = document.getElementById('btn-correr-mao11');
 
-// Esconder Carta (Virada)
 const containerEsconderCarta = document.getElementById('container-esconder-carta');
 const chkEsconderCarta = document.getElementById('chk-esconder-carta');
 
-// Overlays
 const overlayZap = document.getElementById('overlay-zap');
 const textoEfeitoZap = document.getElementById('texto-efeito-zap');
 const cartaZapGrande = document.getElementById('carta-zap-grande');
 const overlayEmbaralhar = document.getElementById('overlay-embaralhar');
 
-// Modal Desconexão
 const modalDesconexao = document.getElementById('modal-desconexao');
 const textoModalDesconexao = document.getElementById('texto-modal-desconexao');
 const btnConfirmarDesconexao = document.getElementById('btn-confirmar-desconexao');
-const btnAguardarReconexao = document.getElementById('btn-aguardar-reconexao');
+
+const timerContainer = document.getElementById('timer-turn');
+const timerSpan = document.getElementById('tempo-restante');
 
 let meuApelido = '';
 let meuTime = '';
 let valorMaoAtual = 1;
 let numRodadaAtual = 1;
+let eMinhaVez = false;
+let bloqueioJogada = false;
+let intervalTimer = null;
 
-// Alternância do Modal de Regras
 btnAbrirRegras.onclick = () => modalRegras.style.display = 'flex';
 btnFecharRegras.onclick = () => modalRegras.style.display = 'none';
 
-// Navegação do Login
 btnAbrirCriar.onclick = () => { cardEntrar.style.display = 'none'; cardCriar.style.display = 'block'; };
 btnVoltarEntrar.onclick = () => { cardCriar.style.display = 'none'; cardEntrar.style.display = 'block'; };
 
 btnEntrar.onclick = () => {
+  initAudio();
   const apelido = document.getElementById('input-apelido').value.trim();
   const nomeSala = document.getElementById('input-sala').value.trim();
   if (!apelido || !nomeSala) return alert('Preencha apelido e sala!');
@@ -65,6 +103,7 @@ btnEntrar.onclick = () => {
 };
 
 btnConfirmarCriar.onclick = () => {
+  initAudio();
   const apelido = document.getElementById('input-criar-apelido').value.trim();
   const nomeSala = document.getElementById('input-criar-sala').value.trim();
   const maxJogadores = document.getElementById('select-max-jogadores').value;
@@ -96,7 +135,6 @@ socket.on('atualizarTrofeus', (data) => {
   document.getElementById('trofeus-b').innerText = `🏆 ${data.b}`;
 });
 
-// Ações de Pedir Truco
 btnPedirTruco.onclick = () => socket.emit('pedirTruco');
 
 socket.on('solicitacaoTruco', (data) => {
@@ -139,12 +177,10 @@ btnAumentarTruco.onclick = () => {
   socket.emit('respostaTruco', { aceitou: true, aumentar: true });
 };
 
-// Alternância e Controle Visual do Botão
 socket.on('atualizarEstadoTruco', (data) => {
   valorMaoAtual = data.valorMao;
   document.getElementById('label-valor-mao').innerText = valorMaoAtual;
 
-  // Só pode pedir aumento se NÃO FOI seu time quem pediu por último
   const podeAumentar = (data.ultimoPediuTime !== meuTime) && !data.bloqueado && valorMaoAtual < 12;
 
   if (podeAumentar) {
@@ -158,7 +194,6 @@ socket.on('atualizarEstadoTruco', (data) => {
   }
 });
 
-// Decisão Mão de 11
 btnAceitarMao11.onclick = () => {
   modalMao11.style.display = 'none';
   socket.emit('respostaMao11', true);
@@ -264,6 +299,10 @@ socket.on('minhasCartas', (data) => {
     }
 
     cardEl.onclick = () => {
+      if (!eMinhaVez || bloqueioJogada) return;
+      bloqueioJogada = true;
+      playSoundPlayCard();
+
       const esconder = chkEsconderCarta.checked && numRodadaAtual >= 2;
       socket.emit('jogarCarta', { indiceCarta: idx, esconder });
       chkEsconderCarta.checked = false;
@@ -301,33 +340,67 @@ socket.on('efeitoManilhaZap', (data) => {
 });
 
 socket.on('jogadorDesconectado', (data) => {
-  textoModalDesconexao.innerText = `O jogador (${data.apelido}) caiu da sala.`;
+  if (intervalTimer) clearInterval(intervalTimer);
+  timerContainer.style.display = 'none';
+  textoModalDesconexao.innerText = `O jogador (${data.apelido}) desconectou-se da partida.`;
   modalDesconexao.style.display = 'flex';
 });
-
-btnAguardarReconexao.onclick = () => {
-  modalDesconexao.style.display = 'none';
-  document.getElementById('status-vez').innerText = '⏳ Aguardando reconexão...';
-};
 
 btnConfirmarDesconexao.onclick = () => {
   socket.emit('destruirSalaForcado');
   modalDesconexao.style.display = 'none';
   appContainer.style.display = 'none';
   loginContainer.style.display = 'block';
+  location.reload();
 };
 
 socket.on('salaDestruida', (msg) => {
+  if (intervalTimer) clearInterval(intervalTimer);
   alert(msg || 'A sala foi encerrada.');
   modalDesconexao.style.display = 'none';
   appContainer.style.display = 'none';
   loginContainer.style.display = 'block';
 });
 
+function iniciarTimerTurno(segundos = 20) {
+  if (intervalTimer) clearInterval(intervalTimer);
+  let restante = segundos;
+  timerSpan.innerText = restante;
+  timerContainer.style.display = 'block';
+
+  intervalTimer = setInterval(() => {
+    restante--;
+    timerSpan.innerText = restante;
+    if (restante <= 0) {
+      clearInterval(intervalTimer);
+    }
+  }, 1000);
+}
+
 socket.on('atualizarVez', (apelido) => {
-  document.getElementById('status-vez').innerText = apelido.includes('Aguardando') ? apelido : `Vez de: ${apelido}`;
+  bloqueioJogada = false;
+  const statusEl = document.getElementById('status-vez');
+
+  if (apelido.includes('Aguardando')) {
+    statusEl.innerText = apelido;
+    eMinhaVez = false;
+    timerContainer.style.display = 'none';
+    if (intervalTimer) clearInterval(intervalTimer);
+  } else {
+    statusEl.innerText = `Vez de: ${apelido}`;
+    eMinhaVez = (apelido === meuApelido);
+
+    if (eMinhaVez) {
+      playSoundTurnNotification();
+      iniciarTimerTurno(20);
+    } else {
+      timerContainer.style.display = 'none';
+      if (intervalTimer) clearInterval(intervalTimer);
+    }
+  }
 });
 
 socket.on('fimDePartida', (data) => {
+  if (intervalTimer) clearInterval(intervalTimer);
   alert(`🏆 Fim de partida! Vencedor: Time ${data.vencedor}`);
 });
