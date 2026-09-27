@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Truco Paulista Multiplayer</title>
+  <title>Truco Paulista</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,7 +25,7 @@
         <div class="carta-animada c2">🂠</div>
         <div class="carta-animada c3">🂠</div>
       </div>
-      <h2>Embaralhando e distribuindo...</h2>
+      <h2>Embaralhando as Cartas...</h2>
     </div>
   </div>
 
@@ -50,8 +50,8 @@
           <li>Empate em todas: ninguém pontua.</li>
         </ul>
 
-        <h3>4. Sistema de Apostas</h3>
-        <p>Valores: 1 &rightarrow; 3 (Truco) &rightarrow; 6 &rightarrow; 9 &rightarrow; 12. A dupla que fez o último pedido não pode pedir o aumento seguinte.</p>
+        <h3>4. Sistema de Pontos</h3>
+        <p>Pontos: 1 &rightarrow; 3 (Truco) &rightarrow; 6 &rightarrow; 9 &rightarrow; 12. A dupla que fez o último pedido não pode pedir o aumento seguinte.</p>
 
         <h3>5. Mão de 11 e Mão de Ferro</h3>
         <p><strong>Mão de 11:</strong> Olhe as cartas da dupla e decida se joga (3 pts) ou corre (entrega 1 pt ao rival). <em>É proibido trucar na Mão de 11!</em></p>
@@ -71,8 +71,7 @@
       <p id="texto-modal-desconexao">Um jogador saiu ou perdeu a conexão.</p>
 
       <div class="botoes-modal-desconexao">
-        <button id="btn-aguardar-reconexao" class="btn-primary" style="background: var(--blue-btn);">Aguardar Jogador Voltar</button>
-        <button id="btn-confirmar-desconexao" class="btn-secondary">Sair e Destruir Sala</button>
+        <button id="btn-confirmar-desconexao" class="btn-secondary">OK</button>
       </div>
     </div>
   </div>
@@ -80,33 +79,33 @@
   <!-- TELA DE LOGIN / CRIAR SALA -->
   <div id="login-container">
     <div class="card-login" id="card-entrar">
-      <h2>Truco Paulista</h2>
+      <h2>Truco De Bigode</h2>
       
       <div class="form-group">
         <label>Seu Apelido:</label>
-        <input type="text" id="input-apelido" placeholder="Ex: Carlinhos">
+        <input type="text" id="input-apelido" placeholder="Informe um apelido">
       </div>
 
       <div class="form-group">
         <label>Nome da Sala:</label>
-        <input type="text" id="input-sala" placeholder="Ex: sala-dos-amigos">
+        <input type="text" id="input-sala" placeholder="Informe o codigo da sala">
       </div>
 
       <button id="btn-entrar" class="btn-primary">Entrar na Sala</button>
-      <button id="btn-abrir-criar" class="btn-secondary">Ou Criar uma Nova Sala</button>
+      <button id="btn-abrir-criar" class="btn-secondary">Criar Sala</button>
     </div>
 
     <div class="card-login" id="card-criar" style="display: none;">
-      <h2>Criar Nova Sala</h2>
+      <h2>Criando sua propria sala</h2>
       
       <div class="form-group">
         <label>Seu Apelido:</label>
-        <input type="text" id="input-criar-apelido" placeholder="Ex: Carlinhos">
+        <input type="text" id="input-criar-apelido" placeholder="Informe seu apelido">
       </div>
 
       <div class="form-group">
-        <label>Nome da Nova Sala:</label>
-        <input type="text" id="input-criar-sala" placeholder="Ex: sala-vip">
+        <label>Nome da Sala:</label>
+        <input type="text" id="input-criar-sala" placeholder="Informe um nome para sala">
       </div>
 
       <div class="form-group">
@@ -117,8 +116,8 @@
         </select>
       </div>
 
-      <button id="btn-confirmar-criar" class="btn-primary">Criar e Entrar</button>
-      <button id="btn-voltar-entrar" class="btn-secondary">Voltar</button>
+      <button id="btn-confirmar-criar" class="btn-primary">CRIAR</button>
+      <button id="btn-voltar-entrar" class="btn-secondary">VOLTAR</button>
     </div>
   </div>
 
