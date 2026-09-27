@@ -93,7 +93,7 @@ function verificarAcaoBot(sala) {
 
   // Decisão de Pedir Truco pela IA do Bot
   let temManilhaOuCartaBoa = jogadorAtual.cartas.some(c => c.valor === sala.valorManilha || ['3', '2', 'A'].includes(c.valor));
-  let roubarBluff = Math.random() < 0.25; // 25% de hipótese de blefar (roubar)
+  let roubarBluff = Math.random() < 0.25; // 25% de hipótese de blefar
 
   if ((temManilhaOuCartaBoa || roubarBluff) && sala.ultimoPediuTime !== jogadorAtual.time && !sala.isMaoDe11 && sala.valorMao < 12) {
     let proximoValor = sala.valorMao === 1 ? 3 : (sala.valorMao === 3 ? 6 : (sala.valorMao === 6 ? 9 : 12));
@@ -103,6 +103,8 @@ function verificarAcaoBot(sala) {
       valorProposto: proximoValor
     };
     if (sala.timerTurno) clearTimeout(sala.timerTurno);
+    
+    // REGRA 3: Notifica explicitamente todos da sala sobre o pedido do Bot na 1ª rodada
     io.to(sala.nome).emit('solicitacaoTruco', sala.propostaTruco);
 
     // Se o adversário for outro bot, responder automaticamente
@@ -126,7 +128,7 @@ function responderTrucoBot(sala, bot) {
   if (!sala.propostaTruco) return;
 
   let temBoa = bot.cartas.some(c => c.valor === sala.valorManilha || ['3', '2'].includes(c.valor));
-  let aceitar = temBoa || Math.random() < 0.65; // Aceita a maioria dos trucos
+  let aceitar = temBoa || Math.random() < 0.65;
 
   if (aceitar) {
     sala.valorMao = sala.propostaTruco.valorProposto;
