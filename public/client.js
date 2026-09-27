@@ -1,6 +1,6 @@
 const socket = io();
 
-// Elementos Login
+// Login
 const cardEntrar = document.getElementById('card-entrar');
 const cardCriar = document.getElementById('card-criar');
 const btnAbrirCriar = document.getElementById('btn-abrir-criar');
@@ -8,10 +8,14 @@ const btnVoltarEntrar = document.getElementById('btn-voltar-entrar');
 const btnEntrar = document.getElementById('btn-entrar');
 const btnConfirmarCriar = document.getElementById('btn-confirmar-criar');
 
-// Elementos Jogo
+// App & Regras
 const loginContainer = document.getElementById('login-container');
 const appContainer = document.getElementById('app');
+const modalRegras = document.getElementById('modal-regras');
+const btnAbrirRegras = document.getElementById('btn-abrir-regras');
+const btnFecharRegras = document.getElementById('btn-fechar-regras');
 
+// Truco Controles
 const btnPedirTruco = document.getElementById('btn-pedir-truco');
 const modalTruco = document.getElementById('modal-truco');
 const textoTrucoPedido = document.getElementById('texto-truco-pedido');
@@ -19,12 +23,12 @@ const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
 const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
 const btnCorrerTruco = document.getElementById('btn-correr-truco');
 
-// Elementos Mão de 11
+// Mão de 11 Controles
 const modalMao11 = document.getElementById('modal-mao11');
 const btnAceitarMao11 = document.getElementById('btn-aceitar-mao11');
 const btnCorrerMao11 = document.getElementById('btn-correr-mao11');
 
-// Esconder Carta
+// Esconder Carta (Virada)
 const containerEsconderCarta = document.getElementById('container-esconder-carta');
 const chkEsconderCarta = document.getElementById('chk-esconder-carta');
 
@@ -45,26 +49,18 @@ let meuTime = '';
 let valorMaoAtual = 1;
 let numRodadaAtual = 1;
 
-// Alternar Telas de Login
-btnAbrirCriar.onclick = () => {
-  cardEntrar.style.display = 'none';
-  cardCriar.style.display = 'block';
-};
+// Alternância do Modal de Regras
+btnAbrirRegras.onclick = () => modalRegras.style.display = 'flex';
+btnFecharRegras.onclick = () => modalRegras.style.display = 'none';
 
-btnVoltarEntrar.onclick = () => {
-  cardCriar.style.display = 'none';
-  cardEntrar.style.display = 'block';
-};
+// Navegação do Login
+btnAbrirCriar.onclick = () => { cardEntrar.style.display = 'none'; cardCriar.style.display = 'block'; };
+btnVoltarEntrar.onclick = () => { cardCriar.style.display = 'none'; cardEntrar.style.display = 'block'; };
 
 btnEntrar.onclick = () => {
   const apelido = document.getElementById('input-apelido').value.trim();
   const nomeSala = document.getElementById('input-sala').value.trim();
-
-  if (!apelido || !nomeSala) {
-    alert('Por favor, preencha o apelido e o nome da sala!');
-    return;
-  }
-
+  if (!apelido || !nomeSala) return alert('Preencha apelido e sala!');
   socket.emit('entrarSala', { apelido, nomeSala });
 };
 
@@ -72,12 +68,7 @@ btnConfirmarCriar.onclick = () => {
   const apelido = document.getElementById('input-criar-apelido').value.trim();
   const nomeSala = document.getElementById('input-criar-sala').value.trim();
   const maxJogadores = document.getElementById('select-max-jogadores').value;
-
-  if (!apelido || !nomeSala) {
-    alert('Por favor, preencha o apelido e o nome da nova sala!');
-    return;
-  }
-
+  if (!apelido || !nomeSala) return alert('Preencha apelido e nome da sala!');
   socket.emit('criarSala', { apelido, nomeSala, maxJogadores });
 };
 
@@ -86,11 +77,9 @@ socket.on('erroEntrada', (msg) => alert(msg));
 socket.on('sucessoEntrada', (data) => {
   meuApelido = data.apelido;
   meuTime = data.time;
-
   modalDesconexao.style.display = 'none';
   loginContainer.style.display = 'none';
   appContainer.style.display = 'flex';
-  
   document.getElementById('label-nome-sala').innerText = data.nomeSala;
   document.getElementById('meu-info').innerText = `${meuApelido} (Time ${meuTime})`;
 });
@@ -98,7 +87,6 @@ socket.on('sucessoEntrada', (data) => {
 socket.on('atualizarJogadores', (jogadores) => {
   const timeA = jogadores.filter(j => j.time === 'A').map(j => j.apelido).join(' & ');
   const timeB = jogadores.filter(j => j.time === 'B').map(j => j.apelido).join(' & ');
-
   document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
   document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
 });
@@ -108,16 +96,12 @@ socket.on('atualizarTrofeus', (data) => {
   document.getElementById('trofeus-b').innerText = `🏆 ${data.b}`;
 });
 
-// AÇÕES E PEDIDOS DE TRUCO / AUMENTO
-btnPedirTruco.onclick = () => {
-  socket.emit('pedirTruco');
-};
+// Ações de Pedir Truco
+btnPedirTruco.onclick = () => socket.emit('pedirTruco');
 
 socket.on('solicitacaoTruco', (data) => {
-  // Se quem pediu não é do meu time, exibimos a caixa de resposta
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
-    
     let rotulo = 'TRUCO!';
     if (data.valorProposto === 6) rotulo = 'SEIS!';
     if (data.valorProposto === 9) rotulo = 'NOVE!';
@@ -126,15 +110,14 @@ socket.on('solicitacaoTruco', (data) => {
     textoTrucoPedido.innerText = `${data.pediuApelido} pediu ${rotulo}`;
     btnAceitarTruco.innerText = `Aceitar (${data.valorProposto} pts)`;
 
-    // Se a aposta já for 12, a opção de aumentar mais é removida
     if (data.valorProposto >= 12) {
       btnAumentarTruco.style.display = 'none';
     } else {
       btnAumentarTruco.style.display = 'inline-block';
-      let proximoRotulo = 'Pedir 6';
-      if (data.valorProposto === 6) proximoRotulo = 'Pedir 9';
-      if (data.valorProposto === 9) proximoRotulo = 'Pedir 12';
-      btnAumentarTruco.innerText = proximoRotulo;
+      let prox = 'Pedir 6';
+      if (data.valorProposto === 6) prox = 'Pedir 9';
+      if (data.valorProposto === 9) prox = 'Pedir 12';
+      btnAumentarTruco.innerText = prox;
     }
   } else {
     document.getElementById('status-vez').innerText = `Aguardando resposta do adversário (${data.valorProposto} pts)...`;
@@ -156,12 +139,12 @@ btnAumentarTruco.onclick = () => {
   socket.emit('respostaTruco', { aceitou: true, aumentar: true });
 };
 
-// ATUALIZAÇÃO DO BOTÃO DE TRUCO DE ACORDO COM QUEM PODE AUMENTAR
+// Alternância e Controle Visual do Botão
 socket.on('atualizarEstadoTruco', (data) => {
   valorMaoAtual = data.valorMao;
   document.getElementById('label-valor-mao').innerText = valorMaoAtual;
 
-  // Regra de alternância: só pode aumentar se NINGUÉM do seu time fez o último pedido
+  // Só pode pedir aumento se NÃO FOI seu time quem pediu por último
   const podeAumentar = (data.ultimoPediuTime !== meuTime) && !data.bloqueado && valorMaoAtual < 12;
 
   if (podeAumentar) {
@@ -171,11 +154,11 @@ socket.on('atualizarEstadoTruco', (data) => {
     else if (valorMaoAtual === 6) btnPedirTruco.innerText = 'NOVE!';
     else if (valorMaoAtual === 9) btnPedirTruco.innerText = '12!';
   } else {
-    btnPedirTruco.style.display = 'none'; // Desabilita/Esconde botão se foi o meu time que pediu
+    btnPedirTruco.style.display = 'none';
   }
 });
 
-// DECISÃO DA MÃO DE 11
+// Decisão Mão de 11
 btnAceitarMao11.onclick = () => {
   modalMao11.style.display = 'none';
   socket.emit('respostaMao11', true);
@@ -190,11 +173,10 @@ socket.on('decisaoMao11Pendente', (data) => {
   if (data.timeNaMao11 === meuTime) {
     modalMao11.style.display = 'block';
   } else {
-    document.getElementById('status-vez').innerText = `Aguardando o Time ${data.timeNaMao11} decidir se joga a Mão de 11...`;
+    document.getElementById('status-vez').innerText = `Aguardando o Time ${data.timeNaMao11} decidir a Mão de 11...`;
   }
 });
 
-// ATUALIZAR INDICADORES DE VITÓRIA NAS RODADAS
 function atualizarBolinhas(historicoRodadas) {
   const bolinhasA = document.querySelectorAll('#bolinhas-a .bolinha');
   const bolinhasB = document.querySelectorAll('#bolinhas-b .bolinha');
@@ -202,18 +184,17 @@ function atualizarBolinhas(historicoRodadas) {
   bolinhasA.forEach(b => b.className = 'bolinha');
   bolinhasB.forEach(b => b.className = 'bolinha');
 
-  historicoRodadas.forEach((resultado, index) => {
-    if (index >= 3) return;
-
-    if (resultado === 'A') {
-      bolinhasA[index].classList.add('vitoria');
-      bolinhasB[index].classList.add('derrota');
-    } else if (resultado === 'B') {
-      bolinhasB[index].classList.add('vitoria');
-      bolinhasA[index].classList.add('derrota');
-    } else if (resultado === 'Empate') {
-      bolinhasA[index].classList.add('empate');
-      bolinhasB[index].classList.add('empate');
+  historicoRodadas.forEach((res, idx) => {
+    if (idx >= 3) return;
+    if (res === 'A') {
+      bolinhasA[idx].classList.add('vitoria');
+      bolinhasB[idx].classList.add('derrota');
+    } else if (res === 'B') {
+      bolinhasB[idx].classList.add('vitoria');
+      bolinhasA[idx].classList.add('derrota');
+    } else if (res === 'Empate') {
+      bolinhasA[idx].classList.add('empate');
+      bolinhasB[idx].classList.add('empate');
     }
   });
 }
@@ -223,7 +204,6 @@ socket.on('novaMao', (data) => {
 
   setTimeout(() => {
     overlayEmbaralhar.style.display = 'none';
-
     valorMaoAtual = data.valorMao;
     numRodadaAtual = 1;
     chkEsconderCarta.checked = false;
@@ -233,6 +213,7 @@ socket.on('novaMao', (data) => {
     document.getElementById('pontos-a').innerText = data.pontosA;
     document.getElementById('pontos-b').innerText = data.pontosB;
     document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
+    document.getElementById('label-manilha').innerText = `Manilha: ${data.valorManilha || '-'}`;
 
     modalTruco.style.display = 'none';
     modalMao11.style.display = 'none';
@@ -261,7 +242,6 @@ socket.on('atualizarRodadasMao', (historicoRodadas) => {
   atualizarBolinhas(historicoRodadas);
   numRodadaAtual = historicoRodadas.length + 1;
 
-  // Exibe a opção de esconder carta apenas a partir da 2ª rodada
   if (numRodadaAtual >= 2) {
     containerEsconderCarta.style.display = 'inline-block';
   } else {
@@ -273,13 +253,9 @@ socket.on('minhasCartas', (data) => {
   const container = document.getElementById('minhas-cartas');
   container.innerHTML = '';
 
-  const cartas = data.cartas;
-  const noEscuro = data.noEscuro;
-
-  cartas.forEach((c, index) => {
+  data.cartas.forEach((c, idx) => {
     const cardEl = document.createElement('div');
-
-    if (noEscuro) {
+    if (data.noEscuro) {
       cardEl.className = 'carta escuro';
       cardEl.innerText = '🂠';
     } else {
@@ -289,7 +265,7 @@ socket.on('minhasCartas', (data) => {
 
     cardEl.onclick = () => {
       const esconder = chkEsconderCarta.checked && numRodadaAtual >= 2;
-      socket.emit('jogarCarta', { indiceCarta: index, esconder });
+      socket.emit('jogarCarta', { indiceCarta: idx, esconder });
       chkEsconderCarta.checked = false;
     };
 
@@ -303,7 +279,6 @@ socket.on('atualizarMesa', (cartasMesa) => {
 
   cartasMesa.forEach(item => {
     const cardEl = document.createElement('div');
-
     if (item.escondida) {
       cardEl.className = 'carta escuro';
       cardEl.innerText = '🂠';
@@ -315,33 +290,24 @@ socket.on('atualizarMesa', (cartasMesa) => {
   });
 });
 
-// Efeito Visual de Manilha e Zap
 socket.on('efeitoManilhaZap', (data) => {
   textoEfeitoZap.innerText = data.isZap ? '💥 ZAP! 💥' : 'MANILHA!';
   cartaZapGrande.innerText = `${data.carta.valor}${data.carta.naipe}`;
-
-  if (data.carta.naipe === '♦' || data.carta.naipe === '♥') {
-    cartaZapGrande.classList.add('vermelho');
-  } else {
-    cartaZapGrande.classList.remove('vermelho');
-  }
+  if (data.carta.naipe === '♦' || data.carta.naipe === '♥') cartaZapGrande.classList.add('vermelho');
+  else cartaZapGrande.classList.remove('vermelho');
 
   overlayZap.style.display = 'flex';
-
-  setTimeout(() => {
-    overlayZap.style.display = 'none';
-  }, 1600);
+  setTimeout(() => overlayZap.style.display = 'none', 1600);
 });
 
-// Eventos de Desconexão e Fim de Partida
 socket.on('jogadorDesconectado', (data) => {
-  textoModalDesconexao.innerText = `O jogador (${data.apelido}) caiu ou saiu da sala.\nVocê pode aguardar ele entrar de novo ou destruir a sala.`;
+  textoModalDesconexao.innerText = `O jogador (${data.apelido}) caiu da sala.`;
   modalDesconexao.style.display = 'flex';
 });
 
 btnAguardarReconexao.onclick = () => {
   modalDesconexao.style.display = 'none';
-  document.getElementById('status-vez').innerText = '⏳ Aguardando jogador reconectar...';
+  document.getElementById('status-vez').innerText = '⏳ Aguardando reconexão...';
 };
 
 btnConfirmarDesconexao.onclick = () => {
@@ -352,7 +318,7 @@ btnConfirmarDesconexao.onclick = () => {
 };
 
 socket.on('salaDestruida', (msg) => {
-  alert(msg || 'A sala foi encerrada e excluída.');
+  alert(msg || 'A sala foi encerrada.');
   modalDesconexao.style.display = 'none';
   appContainer.style.display = 'none';
   loginContainer.style.display = 'block';
@@ -363,5 +329,5 @@ socket.on('atualizarVez', (apelido) => {
 });
 
 socket.on('fimDePartida', (data) => {
-  alert(`🏆 Fim de partida (12 Pts)! Vencedor: ${data.vencedor}\nA partida será reiniciada mantendo os troféus!`);
+  alert(`🏆 Fim de partida! Vencedor: Time ${data.vencedor}`);
 });
