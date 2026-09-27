@@ -25,6 +25,82 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
+}
+
+/* OVERLAY DO ZAP COM EFEITO DE VIDRO QUEBRADO */
+.overlay-zap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: shake 0.4s ease-in-out;
+}
+
+.vidro-quebrado {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 50% 50%, transparent 30%, rgba(255,255,255,0.1) 31%, transparent 32%),
+    linear-gradient(45deg, transparent 48%, rgba(255,255,255,0.3) 50%, transparent 52%),
+    linear-gradient(-45deg, transparent 48%, rgba(255,255,255,0.3) 50%, transparent 52%);
+  pointer-events: none;
+}
+
+.container-zap-animado {
+  text-align: center;
+  animation: zapZoom 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.container-zap-animado h1 {
+  font-size: 3.5rem;
+  color: #f1c40f;
+  text-shadow: 0 0 20px #e67e22, 0 0 40px #f39c12;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+
+.carta-grande {
+  width: 160px;
+  height: 240px;
+  background: #fff;
+  color: #111;
+  border-radius: 16px;
+  font-size: 4rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 0 50px rgba(241, 196, 15, 0.9), inset 0 0 0 4px #f1c40f;
+}
+
+.carta-grande.vermelho {
+  color: #e74c3c;
+}
+
+@keyframes zapZoom {
+  0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  80% { transform: scale(1.15) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  20% { transform: translate(-3px, 0px) rotate(1deg); }
+  40% { transform: translate(3px, 2px) rotate(-1deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  80% { transform: translate(3px, 1px) rotate(1deg); }
+  100% { transform: translate(0px, 0px) rotate(0deg); }
 }
 
 /* TELA DE LOGIN / CRIAR SALA */
@@ -50,7 +126,6 @@ body {
   margin-bottom: 20px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
 
 .form-group {
@@ -76,21 +151,14 @@ body {
   font-size: 1rem;
   font-weight: 600;
   outline: none;
-  transition: border 0.3s;
 }
 
-.form-group input:focus, .form-group select:focus {
-  border-color: var(--gold-primary);
-  box-shadow: 0 0 8px rgba(243, 156, 18, 0.6);
-}
-
-/* BOTÕES GERAIS */
 button {
   cursor: pointer;
   border: none;
   border-radius: 8px;
   font-weight: bold;
-  transition: transform 0.15s, box-shadow 0.15s, filter 0.2s;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 button:active {
@@ -105,12 +173,6 @@ button:active {
   font-size: 1.1rem;
   text-transform: uppercase;
   margin-top: 10px;
-  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.4);
-}
-
-.btn-primary:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 6px 16px rgba(243, 156, 18, 0.6);
 }
 
 .btn-secondary {
@@ -121,10 +183,6 @@ button:active {
   font-size: 0.95rem;
   margin-top: 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.25);
 }
 
 /* CONTAINER PRINCIPAL DO JOGO */
@@ -139,7 +197,6 @@ button:active {
   padding: 15px;
 }
 
-/* CABEÇALHO E PLACAR */
 header {
   background: var(--panel-bg);
   border: 2px solid var(--gold-primary);
@@ -183,18 +240,34 @@ header {
   font-weight: bold;
   font-size: 1rem;
   color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-  margin: 0 auto;
 }
 
 .pts {
   font-size: 2.2rem;
   font-weight: 900;
   color: var(--gold-primary);
-  text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+}
+
+/* BOLINHAS DAS RODADAS DA MÃO */
+.bolinhas-rodada {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.bolinha {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.bolinha.ativa {
+  background: #2ecc71;
+  border-color: #27ae60;
+  box-shadow: 0 0 8px #2ecc71;
 }
 
 .vs {
@@ -210,7 +283,6 @@ header {
   color: #2ecc71;
   font-size: 1.05rem;
   margin-top: 5px;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }
 
 /* MESA DE JOGO */
@@ -232,7 +304,6 @@ main {
   align-items: center;
   justify-content: space-around;
   padding: 20px;
-  position: relative;
 }
 
 .area-vira, .area-jogadas {
@@ -244,15 +315,13 @@ main {
   color: #aaa;
   margin-bottom: 8px;
   text-transform: uppercase;
-  letter-spacing: 1px;
 }
 
-/* ESTILO DAS CARTAS */
+/* CARTAS */
 .cartas-container {
   display: flex;
   gap: 12px;
   justify-content: center;
-  flex-wrap: wrap;
 }
 
 .carta {
@@ -266,32 +335,35 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.4), inset 0 0 0 2px #fff;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  position: relative;
+  transition: transform 0.2s;
 }
 
 .carta.vermelho {
   color: #e74c3c;
 }
 
+.carta.escuro {
+  background: #2c3e50;
+  color: #ecf0f1;
+  border: 2px solid #34495e;
+}
+
 .carta:hover {
   transform: translateY(-10px);
-  box-shadow: 0 12px 20px rgba(0,0,0,0.6);
 }
 
 .carta.vira {
   cursor: default;
   border: 2px solid var(--gold-primary);
-  box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
 }
 
 .carta.vira:hover {
   transform: none;
 }
 
-/* RODAPÉ & CONTROLES DO JOGADOR */
+/* RODAPÉ & CONTROLES */
 footer {
   background: var(--panel-bg);
   border: 2px solid var(--gold-primary);
@@ -318,11 +390,6 @@ footer {
   color: #000;
   font-size: 1.1rem;
   border-radius: 25px;
-  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.5);
-}
-
-.btn-truco-action:hover {
-  filter: brightness(1.15);
 }
 
 /* MODAL DE RESPOSTA DO TRUCO */
@@ -335,7 +402,6 @@ footer {
   border: 2px solid var(--gold-primary);
   border-radius: 12px;
   padding: 15px 20px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.8);
   z-index: 100;
   width: 90%;
   max-width: 400px;
@@ -344,7 +410,6 @@ footer {
 .modal-truco p {
   font-size: 1.1rem;
   font-weight: bold;
-  color: #fff;
   margin-bottom: 12px;
 }
 
@@ -357,26 +422,9 @@ footer {
 .botoes-truco button {
   flex: 1;
   padding: 10px 5px;
-  font-size: 0.9rem;
   color: #fff;
 }
 
 .btn-aceitar { background: var(--green-btn); }
 .btn-aumentar { background: var(--blue-btn); }
 .btn-correr { background: var(--red-btn); }
-
-@media (max-width: 600px) {
-  .carta {
-    width: 58px;
-    height: 85px;
-    font-size: 1.2rem;
-  }
-  
-  .pts {
-    font-size: 1.8rem;
-  }
-
-  .nomes {
-    font-size: 0.85rem;
-  }
-}
