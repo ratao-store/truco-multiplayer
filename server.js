@@ -57,11 +57,16 @@ function iniciarNovaMao(nomeSala) {
   sala.valorManilha = proximaCarta(sala.vira.valor);
   sala.valorMao = 1;
   sala.trucoPendente = null;
+  sala.ultimoPediuTime = null; // Zera o controle de quem pediu Truco
   sala.jogadasRodadaAtual = [];
   sala.rodadasGanhas = { A: 0, B: 0 };
   sala.historicoRodadas = [];
+  sala.aguardandoMao11 = false;
 
-  const maoDeFerro = (sala.pontos.A === 11 && sala.pontos.B === 11);
+  const pA = sala.pontos.A;
+  const pB = sala.pontos.B;
+  const maoDeFerro = (pA === 11 && pB === 11);
+  const isMaoDe11 = (pA === 11 || pB === 11) && !maoDeFerro;
 
   sala.jogadores.forEach(j => {
     j.cartas = [sala.baralho.pop(), sala.baralho.pop(), sala.baralho.pop()];
@@ -85,12 +90,28 @@ function iniciarNovaMao(nomeSala) {
 
   io.to(nomeSala).emit('novaMao', {
     vira: sala.vira,
-    valorMao: sala.valorMao,
-    pontosA: sala.pontos.A,
-    pontosB: sala.pontos.B,
+    valorMao: isMaoDe11 ? 3 : 1,
+    pontosA: pA,
+    pontosB: pB,
     vez: sala.jogadores[sala.indiceVez].apelido,
-    maoDeFerro
+    maoDeFerro,
+    isMaoDe11
   });
+
+  io.to(nomeSala).emit('atualizarEstadoTruco', {
+    valorMao: isMaoDe11 ? 3 : 1,
+    ultimoPediuTime: null,
+    bloqueado: isMaoDe11 || maoDeFerro
+  });
+
+  if (isMaoDe11) {
+    sala.valorMao = 3;
+    sala.aguardandoMao11 = true;
+    const timeNaMao11 = pA === 11 ? 'A' : 'B';
+    sala.timeNaMao11 = timeNaMao11;
+
+    io.to(nomeSala).emit('decisaoMao11Pendente', { timeNaMao11 });
+  }
 
   io.to(nomeSala).emit('atualizarMesa', []);
   io.to(nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
@@ -151,7 +172,8 @@ io.on('connection', (socket) => {
       pontos: { A: 0, B: 0 },
       trofeus: { A: 0, B: 0 },
       emAndamento: false,
-      valorMao: 1
+      valorMao: 1,
+      ultimoPediuTime: null
     };
 
     entrarNaSala(socket, apelido, nomeSala);
@@ -184,16 +206,21 @@ io.on('connection', (socket) => {
       socket.emit('sucessoEntrada', { apelido: jogadorExistente.apelido, time: jogadorExistente.time, nomeSala });
       io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
 
-      const maoDeFerro = (sala.pontos.A === 11 && sala.pontos.B === 11);
+      const pA = sala.pontos.A;
+      const pB = sala.pontos.B;
+      const maoDeFerro = (pA === 11 && pB === 11);
+      const isMaoDe11 = (pA === 11 || pB === 11) && !maoDeFerro;
+
       socket.emit('minhasCartas', { cartas: jogadorExistente.cartas, noEscuro: maoDeFerro });
       
       io.to(nomeSala).emit('novaMao', {
         vira: sala.vira,
         valorMao: sala.valorMao,
-        pontosA: sala.pontos.A,
-        pontosB: sala.pontos.B,
+        pontosA: pA,
+        pontosB: pB,
         vez: sala.jogadores[sala.indiceVez].apelido,
-        maoDeFerro
+        maoDeFerro,
+        isMaoDe11
       });
 
       return;
@@ -240,9 +267,35 @@ io.on('connection', (socket) => {
     }
   }
 
-  socket.on('jogarCarta', (indiceCarta) => {
+  // RESPOSTA DECISÃO DA MÃO DE 11
+  socket.on('respostaMao11', (aceitou) => {
     const sala = salas[socket.nomeSala];
-    if (!sala || !sala.emAndamento) return;
+    if (!sala || !sala.aguardandoMao11) return;
+
+    if (socket.time !== sala.timeNaMao11) return;
+
+    sala.aguardandoMao11 = false;
+
+    if (aceitou) {
+      io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
+    } else {
+      const timeAdversario = sala.timeNaMao11 === 'A' ? 'B' : 'A';
+      sala.pontos[timeAdversario] += 1;
+
+      if (sala.pontos[timeAdversario] >= 12) {
+        sala.trofeus[timeAdversario] += 1;
+        io.to(socket.nomeSala).emit('atualizarTrofeus', sala.trofeus);
+        io.to(socket.nomeSala).emit('fimDePartida', { vencedor: timeAdversario });
+        sala.pontos = { A: 0, B: 0 };
+      }
+
+      iniciarNovaMao(socket.nomeSala);
+    }
+  });
+
+  socket.on('jogarCarta', ({ indiceCarta, esconder }) => {
+    const sala = salas[socket.nomeSala];
+    if (!sala || !sala.emAndamento || sala.aguardandoMao11 || sala.trucoPendente) return;
 
     const jogadorDaVez = sala.jogadores[sala.indiceVez];
     if (jogadorDaVez.id !== socket.id) return;
@@ -251,11 +304,12 @@ io.on('connection', (socket) => {
     if (!jogador || !jogador.cartas[indiceCarta]) return;
 
     const cartaJogada = jogador.cartas.splice(indiceCarta, 1)[0];
-    
+    const cartaEscondida = esconder && (sala.historicoRodadas.length >= 1);
+
     const isManilha = (cartaJogada.valor === sala.valorManilha);
     const isZap = (isManilha && cartaJogada.naipe === '♣');
 
-    if (isManilha) {
+    if (isManilha && !cartaEscondida) {
       io.to(socket.nomeSala).emit('efeitoManilhaZap', {
         carta: cartaJogada,
         isZap,
@@ -266,7 +320,8 @@ io.on('connection', (socket) => {
     sala.jogadasRodadaAtual.push({
       jogador: jogador.apelido,
       time: jogador.time,
-      carta: cartaJogada
+      carta: cartaJogada,
+      escondida: cartaEscondida
     });
 
     socket.emit('minhasCartas', {
@@ -285,7 +340,11 @@ io.on('connection', (socket) => {
         let empate = false;
 
         sala.jogadasRodadaAtual.forEach(j => {
-          const f = calcularForca(j.carta, sala.valorManilha);
+          let f = 0;
+          if (!j.escondida) {
+            f = calcularForca(j.carta, sala.valorManilha);
+          }
+
           if (f > maiorForca) {
             maiorForca = f;
             vencedorJogada = j;
@@ -318,11 +377,15 @@ io.on('connection', (socket) => {
     }
   });
 
+  // SOLICITAÇÃO DE TRUCO / SEIS / NOVE / 12
   socket.on('pedirTruco', () => {
     const sala = salas[socket.nomeSala];
-    if (!sala || !sala.emAndamento) return;
+    if (!sala || !sala.emAndamento || sala.aguardandoMao11 || sala.trucoPendente) return;
 
     if (sala.pontos.A === 11 || sala.pontos.B === 11) return;
+
+    // TRAVA DE SEGURANÇA: Impede que a mesma dupla peça aumento em sequência
+    if (sala.ultimoPediuTime === socket.time) return;
 
     let proximoValor = 3;
     if (sala.valorMao === 3) proximoValor = 6;
@@ -340,16 +403,52 @@ io.on('connection', (socket) => {
     io.to(socket.nomeSala).emit('solicitacaoTruco', sala.trucoPendente);
   });
 
-  socket.on('respostaTruco', (aceitou) => {
+  // RESPOSTA AO TRUCO / AUMENTO
+  socket.on('respostaTruco', ({ aceitou, aumentar }) => {
     const sala = salas[socket.nomeSala];
     if (!sala || !sala.trucoPendente) return;
 
+    // Quem está respondendo tem que ser do time adversário de quem pediu
+    if (socket.time === sala.trucoPendente.pediuTime) return;
+
+    const valorPropostoAtual = sala.trucoPendente.valorProposto;
+    const timeQuePediuAnterior = sala.trucoPendente.pediuTime;
+
+    if (aumentar && valorPropostoAtual < 12) {
+      // Re-aumentar imediatamente (ex: oponente pediu Truco e você respondeu pedindo 6)
+      let proximoValor = 6;
+      if (valorPropostoAtual === 6) proximoValor = 9;
+      else if (valorPropostoAtual === 9) proximoValor = 12;
+
+      sala.valorMao = valorPropostoAtual;
+      sala.ultimoPediuTime = socket.time; // O direito do pedido muda para o jogador atual
+
+      sala.trucoPendente = {
+        pediuTime: socket.time,
+        pediuApelido: socket.apelido,
+        valorProposto: proximoValor
+      };
+
+      io.to(socket.nomeSala).emit('solicitacaoTruco', sala.trucoPendente);
+      return;
+    }
+
     if (aceitou) {
-      sala.valorMao = sala.trucoPendente.valorProposto;
-      io.to(socket.nomeSala).emit('trucoAceito', { valorMao: sala.valorMao });
+      sala.valorMao = valorPropostoAtual;
+      sala.ultimoPediuTime = timeQuePediuAnterior; // Registra quem foi a dupla que fez o último pedido aceito
       sala.trucoPendente = null;
+
+      io.to(socket.nomeSala).emit('trucoAceito', { valorMao: sala.valorMao });
+      
+      // Atualiza os botões para todos na sala (bloqueando a dupla que acabou de pedir)
+      io.to(socket.nomeSala).emit('atualizarEstadoTruco', {
+        valorMao: sala.valorMao,
+        ultimoPediuTime: sala.ultimoPediuTime,
+        bloqueado: false
+      });
     } else {
-      sala.pontos[sala.trucoPendente.pediuTime] += sala.valorMao;
+      // Se correu/fugiu do pedido, o time que pediu ganha o valor atual acumulado
+      sala.pontos[timeQuePediuAnterior] += sala.valorMao;
       sala.trucoPendente = null;
 
       if (sala.pontos['A'] >= 12 || sala.pontos['B'] >= 12) {
