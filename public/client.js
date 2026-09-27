@@ -1,10 +1,20 @@
 const socket = io();
 
-// Contexto de Áudio para Efeitos Sonoros
+// Áudio e Síntese de Voz Nativa (Gritos de Truco e Efeitos)
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function falarTexto(texto) {
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = 'pt-BR';
+    utterance.pitch = 1.2;
+    utterance.rate = 1.1;
+    window.speechSynthesis.speak(utterance);
   }
 }
 
@@ -54,6 +64,20 @@ const modalRegras = document.getElementById('modal-regras');
 const btnAbrirRegras = document.getElementById('btn-abrir-regras');
 const btnFecharRegras = document.getElementById('btn-fechar-regras');
 
+const modalSumula = document.getElementById('modal-sumula');
+const btnAbrirSumula = document.getElementById('btn-abrir-sumula');
+const btnFecharSumula = document.getElementById('btn-fechar-sumula');
+const conteudoSumula = document.getElementById('conteudo-sumula');
+
+const modalQRCode = document.getElementById('modal-qrcode');
+const btnAbrirQRCode = document.getElementById('btn-abrir-qrcode');
+const btnFecharQRCode = document.getElementById('btn-fechar-qrcode');
+const inputLinkConvite = document.getElementById('input-link-convite');
+const btnCopiarLink = document.getElementById('btn-copiar-link');
+
+const selectTemaMesa = document.getElementById('select-tema-mesa');
+const btnAdicionarBot = document.getElementById('btn-adicionar-bot');
+
 const btnPedirTruco = document.getElementById('btn-pedir-truco');
 const modalTruco = document.getElementById('modal-truco');
 const textoTrucoPedido = document.getElementById('texto-truco-pedido');
@@ -81,15 +105,48 @@ const timerContainer = document.getElementById('timer-turn');
 const timerSpan = document.getElementById('tempo-restante');
 
 let meuApelido = '';
+let meuAvatar = '🥸';
 let meuTime = '';
+let nomeSalaAtual = '';
 let valorMaoAtual = 1;
 let numRodadaAtual = 1;
 let eMinhaVez = false;
 let bloqueioJogada = false;
 let intervalTimer = null;
+let sumulaMao = [];
+
+// Troca de Tema
+selectTemaMesa.onchange = (e) => {
+  document.body.className = e.target.value;
+};
+
+// Auto-Preenchimento por Parâmetro URL (Link de Convite)
+window.onload = () => {
+  const params = new URLSearchParams(window.location.search);
+  const salaUrl = params.get('sala');
+  if (salaUrl) {
+    document.getElementById('input-sala').value = salaUrl;
+  }
+};
 
 btnAbrirRegras.onclick = () => modalRegras.style.display = 'flex';
 btnFecharRegras.onclick = () => modalRegras.style.display = 'none';
+
+btnAbrirSumula.onclick = () => modalSumula.style.display = 'flex';
+btnFecharSumula.onclick = () => modalSumula.style.display = 'none';
+
+btnAbrirQRCode.onclick = () => {
+  const link = `${window.location.origin}/?sala=${encodeURIComponent(nomeSalaAtual)}`;
+  inputLinkConvite.value = link;
+  document.getElementById('qrcode-container').innerHTML = '';
+  new QRCode(document.getElementById('qrcode-container'), { text: link, width: 128, height: 128 });
+  modalQRCode.style.display = 'flex';
+};
+btnFecharQRCode.onclick = () => modalQRCode.style.display = 'none';
+btnCopiarLink.onclick = () => {
+  navigator.clipboard.writeText(inputLinkConvite.value);
+  alert('Link copiado!');
+};
 
 btnAbrirCriar.onclick = () => { cardEntrar.style.display = 'none'; cardCriar.style.display = 'block'; };
 btnVoltarEntrar.onclick = () => { cardCriar.style.display = 'none'; cardEntrar.style.display = 'block'; };
@@ -98,17 +155,21 @@ btnEntrar.onclick = () => {
   initAudio();
   const apelido = document.getElementById('input-apelido').value.trim();
   const nomeSala = document.getElementById('input-sala').value.trim();
+  const avatar = document.getElementById('select-avatar-login').value;
   if (!apelido || !nomeSala) return alert('Preencha apelido e sala!');
-  socket.emit('entrarSala', { apelido, nomeSala });
+  meuAvatar = avatar;
+  socket.emit('entrarSala', { apelido, avatar, nomeSala });
 };
 
 btnConfirmarCriar.onclick = () => {
   initAudio();
   const apelido = document.getElementById('input-criar-apelido').value.trim();
   const nomeSala = document.getElementById('input-criar-sala').value.trim();
+  const avatar = document.getElementById('select-avatar-criar').value;
   const maxJogadores = document.getElementById('select-max-jogadores').value;
   if (!apelido || !nomeSala) return alert('Preencha apelido e nome da sala!');
-  socket.emit('criarSala', { apelido, nomeSala, maxJogadores });
+  meuAvatar = avatar;
+  socket.emit('criarSala', { apelido, avatar, nomeSala, maxJogadores });
 };
 
 socket.on('erroEntrada', (msg) => alert(msg));
@@ -116,19 +177,32 @@ socket.on('erroEntrada', (msg) => alert(msg));
 socket.on('sucessoEntrada', (data) => {
   meuApelido = data.apelido;
   meuTime = data.time;
+  nomeSalaAtual = data.nomeSala;
   modalDesconexao.style.display = 'none';
   loginContainer.style.display = 'none';
   appContainer.style.display = 'flex';
   document.getElementById('label-nome-sala').innerText = data.nomeSala;
-  document.getElementById('meu-info').innerText = `${meuApelido} (Time ${meuTime})`;
+  document.getElementById('meu-info').innerText = `${meuAvatar} ${meuApelido} (Time ${meuTime})`;
+
+  // Guardar Sessão Local para Reconexão Automática
+  localStorage.setItem('truco_sessao', JSON.stringify({ apelido: meuApelido, avatar: meuAvatar, nomeSala: nomeSalaAtual }));
 });
 
 socket.on('atualizarJogadores', (jogadores) => {
-  const timeA = jogadores.filter(j => j.time === 'A').map(j => j.apelido).join(' & ');
-  const timeB = jogadores.filter(j => j.time === 'B').map(j => j.apelido).join(' & ');
+  const timeA = jogadores.filter(j => j.time === 'A').map(j => `${j.avatar || ''} ${j.apelido}`).join(' & ');
+  const timeB = jogadores.filter(j => j.time === 'B').map(j => `${j.avatar || ''} ${j.apelido}`).join(' & ');
   document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
   document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
+
+  // Exibe botão de adicionar BOT se for o criador/primeiro jogador e faltar gente
+  if (jogadores.length > 0 && jogadores[0].apelido === meuApelido && jogadores.length < 4) {
+    btnAdicionarBot.style.display = 'inline-block';
+  } else {
+    btnAdicionarBot.style.display = 'none';
+  }
 });
+
+btnAdicionarBot.onclick = () => socket.emit('adicionarBot');
 
 socket.on('atualizarTrofeus', (data) => {
   document.getElementById('trofeus-a').innerText = `🏆 ${data.a}`;
@@ -138,6 +212,7 @@ socket.on('atualizarTrofeus', (data) => {
 btnPedirTruco.onclick = () => socket.emit('pedirTruco');
 
 socket.on('solicitacaoTruco', (data) => {
+  falarTexto(`${data.pediuApelido} pediu truco!`);
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
     let rotulo = 'TRUCO!';
@@ -162,20 +237,9 @@ socket.on('solicitacaoTruco', (data) => {
   }
 });
 
-btnAceitarTruco.onclick = () => {
-  modalTruco.style.display = 'none';
-  socket.emit('respostaTruco', { aceitou: true, aumentar: false });
-};
-
-btnCorrerTruco.onclick = () => {
-  modalTruco.style.display = 'none';
-  socket.emit('respostaTruco', { aceitou: false, aumentar: false });
-};
-
-btnAumentarTruco.onclick = () => {
-  modalTruco.style.display = 'none';
-  socket.emit('respostaTruco', { aceitou: true, aumentar: true });
-};
+btnAceitarTruco.onclick = () => { modalTruco.style.display = 'none'; socket.emit('respostaTruco', { aceitou: true, aumentar: false }); };
+btnCorrerTruco.onclick = () => { modalTruco.style.display = 'none'; socket.emit('respostaTruco', { aceitou: false, aumentar: false }); };
+btnAumentarTruco.onclick = () => { modalTruco.style.display = 'none'; socket.emit('respostaTruco', { aceitou: true, aumentar: true }); };
 
 socket.on('atualizarEstadoTruco', (data) => {
   valorMaoAtual = data.valorMao;
@@ -194,15 +258,8 @@ socket.on('atualizarEstadoTruco', (data) => {
   }
 });
 
-btnAceitarMao11.onclick = () => {
-  modalMao11.style.display = 'none';
-  socket.emit('respostaMao11', true);
-};
-
-btnCorrerMao11.onclick = () => {
-  modalMao11.style.display = 'none';
-  socket.emit('respostaMao11', false);
-};
+btnAceitarMao11.onclick = () => { modalMao11.style.display = 'none'; socket.emit('respostaMao11', true); };
+btnCorrerMao11.onclick = () => { modalMao11.style.display = 'none'; socket.emit('respostaMao11', false); };
 
 socket.on('decisaoMao11Pendente', (data) => {
   if (data.timeNaMao11 === meuTime) {
@@ -236,6 +293,8 @@ function atualizarBolinhas(historicoRodadas) {
 
 socket.on('novaMao', (data) => {
   overlayEmbaralhar.style.display = 'flex';
+  sumulaMao = [];
+  conteudoSumula.innerHTML = '<p>Mão iniciada...</p>';
 
   setTimeout(() => {
     overlayEmbaralhar.style.display = 'none';
@@ -316,16 +375,21 @@ socket.on('atualizarMesa', (cartasMesa) => {
   const container = document.getElementById('cartas-mesa');
   container.innerHTML = '';
 
-  cartasMesa.forEach(item => {
+  cartasMesa.forEach((item, idx) => {
     const cardEl = document.createElement('div');
     if (item.escondida) {
-      cardEl.className = 'carta escuro';
+      cardEl.className = 'carta escuro carta-animada-jogar';
       cardEl.innerText = '🂠';
     } else {
-      cardEl.className = 'carta' + (item.carta.naipe === '♦' || item.carta.naipe === '♥' ? ' vermelho' : '');
+      cardEl.className = 'carta carta-animada-jogar' + (item.carta.naipe === '♦' || item.carta.naipe === '♥' ? ' vermelho' : '');
       cardEl.innerText = `${item.carta.valor}${item.carta.naipe}`;
     }
     container.appendChild(cardEl);
+
+    // Atualizar Súmula
+    const txtCarta = item.escondida ? '[CARTA COBERTA]' : `${item.carta.valor}${item.carta.naipe}`;
+    sumulaMao.push(`<p>• <strong>${item.jogador.apelido}</strong> jogou: ${txtCarta}</p>`);
+    conteudoSumula.innerHTML = sumulaMao.join('');
   });
 });
 
@@ -339,14 +403,25 @@ socket.on('efeitoManilhaZap', (data) => {
   setTimeout(() => overlayZap.style.display = 'none', 1600);
 });
 
+// Sistema de Reconexão e Tolerância
+socket.on('jogadorDesconectadoTemp', (data) => {
+  textoModalDesconexao.innerText = `${data.apelido} desconectou-se. Aguardando reconexão (30s)...`;
+  modalDesconexao.style.display = 'flex';
+});
+
+socket.on('jogadorReconectou', (data) => {
+  modalDesconexao.style.display = 'none';
+});
+
 socket.on('jogadorDesconectado', (data) => {
   if (intervalTimer) clearInterval(intervalTimer);
   timerContainer.style.display = 'none';
-  textoModalDesconexao.innerText = `O jogador (${data.apelido}) desconectou-se da partida.`;
+  textoModalDesconexao.innerText = `O jogador (${data.apelido}) desconectou-se definitivamente.`;
   modalDesconexao.style.display = 'flex';
 });
 
 btnConfirmarDesconexao.onclick = () => {
+  localStorage.removeItem('truco_sessao');
   socket.emit('destruirSalaForcado');
   modalDesconexao.style.display = 'none';
   appContainer.style.display = 'none';
@@ -356,6 +431,7 @@ btnConfirmarDesconexao.onclick = () => {
 
 socket.on('salaDestruida', (msg) => {
   if (intervalTimer) clearInterval(intervalTimer);
+  localStorage.removeItem('truco_sessao');
   alert(msg || 'A sala foi encerrada.');
   modalDesconexao.style.display = 'none';
   appContainer.style.display = 'none';
@@ -398,6 +474,45 @@ socket.on('atualizarVez', (apelido) => {
       if (intervalTimer) clearInterval(intervalTimer);
     }
   }
+});
+
+// Reações Flutuantes (Emojis)
+document.querySelectorAll('.btn-emoji').forEach(btn => {
+  btn.onclick = () => {
+    const emoji = btn.getAttribute('data-emoji');
+    socket.emit('enviarReacao', emoji);
+  };
+});
+
+socket.on('receberReacao', (data) => {
+  const container = document.getElementById('container-reacoes-mesa');
+  const el = document.createElement('div');
+  el.className = 'emoji-flutuante';
+  el.innerText = data.emoji;
+  el.style.left = `${Math.random() * 80 + 10}%`;
+  el.style.top = '60%';
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+});
+
+// Chat de Texto em Tempo Real
+const btnEnviarChat = document.getElementById('btn-enviar-chat');
+const inputMsgChat = document.getElementById('input-msg-chat');
+const mensagensChat = document.getElementById('mensagens-chat');
+
+btnEnviarChat.onclick = () => {
+  const texto = inputMsgChat.value.trim();
+  if (texto) {
+    socket.emit('enviarChat', texto);
+    inputMsgChat.value = '';
+  }
+};
+
+socket.on('receberChat', (data) => {
+  const p = document.createElement('p');
+  p.innerHTML = `<strong>${data.apelido}:</strong> ${data.texto}`;
+  mensagensChat.appendChild(p);
+  mensagensChat.scrollTop = mensagensChat.scrollHeight;
 });
 
 socket.on('fimDePartida', (data) => {
