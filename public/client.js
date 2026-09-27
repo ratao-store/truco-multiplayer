@@ -24,7 +24,6 @@ const btnCorrerTruco = document.getElementById('btn-correr-truco');
 let meuApelido = '';
 let meuTime = '';
 let valorMaoAtual = 1;
-let trucoPendenteLocal = null;
 
 // Alternar Telas Login / Criar
 btnAbrirCriar.onclick = () => {
@@ -37,7 +36,7 @@ btnVoltarEntrar.onclick = () => {
   cardEntrar.style.display = 'block';
 };
 
-// Ações Entrada
+// Ações Entrada com validação obrigatória
 btnEntrar.onclick = () => {
   const apelido = document.getElementById('input-apelido').value.trim();
   const nomeSala = document.getElementById('input-sala').value.trim();
@@ -101,35 +100,39 @@ socket.on('atualizarTrofeus', (data) => {
   document.getElementById('trofeus-b').innerText = `🏆 ${data.b}`;
 });
 
-// Truco Controles
+// Ação de pedir Truco / Seis / Nove / Doze
 btnPedirTruco.onclick = () => {
   socket.emit('pedirTruco');
 };
 
+// Recebe a solicitação de Truco enviada por outro jogador
 socket.on('solicitacaoTruco', (data) => {
-  trucoPendenteLocal = data;
-  
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
+    
     let rotulo = 'TRUCO!';
     if (data.valorProposto === 6) rotulo = 'SEIS!';
     if (data.valorProposto === 9) rotulo = 'NOVE!';
     if (data.valorProposto === 12) rotulo = 'DOZE!';
 
     textoTrucoPedido.innerText = `${data.pediuApelido} pediu ${rotulo}`;
+    btnAceitarTruco.innerText = `Aceitar (${data.valorProposto} pts)`;
 
     if (data.valorProposto >= 12) {
       btnAumentarTruco.style.display = 'none';
     } else {
       btnAumentarTruco.style.display = 'inline-block';
-      let proximoRotulo = data.valorProposto === 3 ? 'Pedir 6' : (data.valorProposto === 6 ? 'Pedir 9' : 'Pedir 12');
+      let proximoRotulo = 'Pedir 6';
+      if (data.valorProposto === 6) proximoRotulo = 'Pedir 9';
+      if (data.valorProposto === 9) proximoRotulo = 'Pedir 12';
       btnAumentarTruco.innerText = proximoRotulo;
     }
   } else {
-    document.getElementById('status-vez').innerText = `Aguardando resposta do Truco...`;
+    document.getElementById('status-vez').innerText = `Aguardando resposta da aposta (${data.valorProposto} pts)...`;
   }
 });
 
+// Respostas ao pedido
 btnAceitarTruco.onclick = () => {
   modalTruco.style.display = 'none';
   socket.emit('respostaTruco', true);
@@ -143,7 +146,7 @@ btnCorrerTruco.onclick = () => {
 btnAumentarTruco.onclick = () => {
   modalTruco.style.display = 'none';
   socket.emit('respostaTruco', true);
-  socket.emit('pedirTruco');
+  socket.emit('pedirTruco'); // Faz a solicitação do próximo nível imediatamente
 };
 
 socket.on('trucoAceito', (data) => {
