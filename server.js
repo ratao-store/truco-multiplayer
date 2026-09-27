@@ -249,6 +249,7 @@ function finalizarMao(sala, timeVencedor) {
   if (timeVencedor === 'A') sala.pontosA += sala.valorMao;
   if (timeVencedor === 'B') sala.pontosB += sala.valorMao;
 
+  // VERIFICAÇÃO DE FIM DE PARTIDA (12 PONTOS)
   if (sala.pontosA >= 12 || sala.pontosB >= 12) {
     let campeao = sala.pontosA >= 12 ? 'A' : 'B';
     if (campeao === 'A') sala.trofeusA++;
@@ -257,8 +258,13 @@ function finalizarMao(sala, timeVencedor) {
     io.to(sala.nome).emit('fimDePartida', { vencedor: campeao });
     io.to(sala.nome).emit('atualizarTrofeus', { a: sala.trofeusA, b: sala.trofeusB });
 
+    // Zera a pontuação e desmarca a flag de jogo iniciado
     sala.pontosA = 0;
     sala.pontosB = 0;
+    sala.jogoIniciado = false;
+
+    // Retorna sem iniciar uma nova mão automaticamente
+    return;
   }
 
   iniciarNovaMao(sala);
@@ -358,7 +364,7 @@ io.on('connection', (socket) => {
 
   socket.on('adicionarBot', () => {
     let sala = salas[socket.nomeSala];
-    if (!sala || sala.jogadores.length >= sala.maxJogadores) return;
+    if (!sala || sala.jogadores.length >= sala.maxJogadores || sala.jogoIniciado) return;
 
     let timeA = sala.jogadores.filter(j => j.time === 'A').length;
     let timeB = sala.jogadores.filter(j => j.time === 'B').length;
