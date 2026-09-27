@@ -19,11 +19,6 @@ const FORCA_CARTA = {
   '2': 9, '3': 10
 };
 
-// HIERARQUIA DAS MANILHAS (Paulista):
-// 1. ZAP (Paus ♣) - Mais forte
-// 2. COPAS (Copas ♥)
-// 3. ESPADILHA (Espadas ♠)
-// 4. OUROS (Ouros ♦) - Mais fraca
 const FORCA_NAIPE = {
   '♣': 4, // ZAP
   '♥': 3, // COPAS
@@ -66,7 +61,6 @@ function iniciarNovaMao(nomeSala) {
   sala.rodadasGanhas = { A: 0, B: 0 };
   sala.historicoRodadas = [];
 
-  // MÃO DE FERRO / JOGO NO ESCURO (11 x 11)
   const maoDeFerro = (sala.pontos.A === 11 && sala.pontos.B === 11);
 
   sala.jogadores.forEach(j => {
@@ -80,12 +74,13 @@ function iniciarNovaMao(nomeSala) {
   }
   sala.indiceVez = sala.indiceIniciadorMao;
 
-  // Envia as cartas aos jogadores (no escuro se for 11 x 11)
   sala.jogadores.forEach(j => {
-    io.to(j.id).emit('minhasCartas', {
-      cartas: j.cartas,
-      noEscuro: maoDeFerro
-    });
+    if (j.id) {
+      io.to(j.id).emit('minhasCartas', {
+        cartas: j.cartas,
+        noEscuro: maoDeFerro
+      });
+    }
   });
 
   io.to(nomeSala).emit('novaMao', {
@@ -98,7 +93,7 @@ function iniciarNovaMao(nomeSala) {
   });
 
   io.to(nomeSala).emit('atualizarMesa', []);
-  io.to(nomeSala).emit('atualizarRodadasMao', sala.rodadasGanhas);
+  io.to(nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
 }
 
 function verificarFimMao(nomeSala) {
@@ -163,13 +158,56 @@ io.on('connection', (socket) => {
   });
 
   socket.on('entrarSala', ({ apelido, nomeSala }) => {
-    if (!salas[nomeSala]) {
+    const sala = salas[nomeSala];
+
+    if (!sala) {
       socket.emit('erroEntrada', 'Sala não encontrada!');
       return;
     }
 
-    if (salas[nomeSala].jogadores.length >= salas[nomeSala].maxJogadores) {
+    const jogadorExistente = sala.jogadores.find(j => j.apelido.toLowerCase() === apelido.toLowerCase());
+
+    if (jogadorExistente) {
+      if (jogadorExistente.online) {
+        socket.emit('erroEntrada', 'Este apelido já está jogando na sala!');
+        return;
+      }
+
+      jogadorExistente.id = socket.id;
+      jogadorExistente.online = true;
+
+      socket.join(nomeSala);
+      socket.nomeSala = nomeSala;
+      socket.apelido = jogadorExistente.apelido;
+      socket.time = jogadorExistente.time;
+
+      socket.emit('sucessoEntrada', { apelido: jogadorExistente.apelido, time: jogadorExistente.time, nomeSala });
+      io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
+
+      const maoDeFerro = (sala.pontos.A === 11 && sala.pontos.B === 11);
+      socket.emit('minhasCartas', { cartas: jogadorExistente.cartas, noEscuro: maoDeFerro });
+      
+      io.to(nomeSala).emit('novaMao', {
+        vira: sala.vira,
+        valorMao: sala.valorMao,
+        pontosA: sala.pontos.A,
+        pontosB: sala.pontos.B,
+        vez: sala.jogadores[sala.indiceVez].apelido,
+        maoDeFerro
+      });
+
+      return;
+    }
+
+    const jogandoOnline = sala.jogadores.filter(j => j.online).length;
+    if (sala.jogadores.length >= sala.maxJogadores && jogandoOnline === sala.maxJogadores) {
       socket.emit('erroEntrada', 'A sala está cheia!');
+      return;
+    }
+
+    const desfalque = sala.jogadores.find(j => !j.online);
+    if (desfalque) {
+      socket.emit('erroEntrada', `Esta sala está aguardando a reconexão de (${desfalque.apelido}). Digite o mesmo nome caso seja você!`);
       return;
     }
 
@@ -189,7 +227,8 @@ io.on('connection', (socket) => {
       id: socket.id,
       apelido,
       time,
-      cartas: []
+      cartas: [],
+      online: true
     });
 
     socket.emit('sucessoEntrada', { apelido, time, nomeSala });
@@ -213,7 +252,6 @@ io.on('connection', (socket) => {
 
     const cartaJogada = jogador.cartas.splice(indiceCarta, 1)[0];
     
-    // VERIFICA SE É MANILHA OU ZAP PARA ACIONAR O EFEITO VISUAL
     const isManilha = (cartaJogada.valor === sala.valorManilha);
     const isZap = (isManilha && cartaJogada.naipe === '♣');
 
@@ -264,7 +302,7 @@ io.on('connection', (socket) => {
           sala.historicoRodadas.push(vencedorJogada.time);
         }
 
-        io.to(socket.nomeSala).emit('atualizarRodadasMao', sala.rodadasGanhas);
+        io.to(socket.nomeSala).emit('atualizarRodadasMao', sala.historicoRodadas);
 
         sala.jogadasRodadaAtual = [];
         io.to(socket.nomeSala).emit('atualizarMesa', []);
@@ -280,12 +318,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Pedir Truco
   socket.on('pedirTruco', () => {
     const sala = salas[socket.nomeSala];
     if (!sala || !sala.emAndamento) return;
 
-    // BLOQUEIA TRUCO NA MÃO DE 11
     if (sala.pontos.A === 11 || sala.pontos.B === 11) return;
 
     let proximoValor = 3;
@@ -304,7 +340,6 @@ io.on('connection', (socket) => {
     io.to(socket.nomeSala).emit('solicitacaoTruco', sala.trucoPendente);
   });
 
-  // Resposta Truco
   socket.on('respostaTruco', (aceitou) => {
     const sala = salas[socket.nomeSala];
     if (!sala || !sala.trucoPendente) return;
@@ -329,17 +364,28 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('destruirSalaForcado', () => {
+    if (socket.nomeSala && salas[socket.nomeSala]) {
+      io.to(socket.nomeSala).emit('salaDestruida', 'A sala foi destruída a pedido de um jogador.');
+      delete salas[socket.nomeSala];
+    }
+  });
+
   socket.on('disconnect', () => {
     if (socket.nomeSala && salas[socket.nomeSala]) {
       const sala = salas[socket.nomeSala];
-      sala.jogadores = sala.jogadores.filter(j => j.id !== socket.id);
+      const jogador = sala.jogadores.find(j => j.id === socket.id);
 
-      if (sala.jogadores.length === 0) {
+      if (jogador) {
+        jogador.online = false;
+        socket.to(socket.nomeSala).emit('jogadorDesconectado', {
+          apelido: jogador.apelido
+        });
+      }
+
+      const restamOnline = sala.jogadores.some(j => j.online);
+      if (!restamOnline) {
         delete salas[socket.nomeSala];
-      } else {
-        io.to(socket.nomeSala).emit('atualizarJogadores', sala.jogadores);
-        io.to(socket.nomeSala).emit('atualizarVez', 'Aguardando jogadores...');
-        sala.emAndamento = false;
       }
     }
   });
