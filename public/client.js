@@ -1,6 +1,6 @@
 const socket = io();
 
-// Áudio e Síntese de Voz Nativa (Gritos de Truco e Efeitos)
+// Áudio e Síntese de Voz Nativa
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) {
@@ -12,7 +12,7 @@ function falarTexto(texto) {
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(texto);
     utterance.lang = 'pt-BR';
-    utterance.pitch = 1.2;
+    utterance.pitch = 1.1;
     utterance.rate = 1.1;
     window.speechSynthesis.speak(utterance);
   }
@@ -25,29 +25,13 @@ function playSoundPlayCard() {
   const gain = audioCtx.createGain();
   osc.type = 'sine';
   osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.12);
+  osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.1);
   gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start();
-  osc.stop(audioCtx.currentTime + 0.12);
-}
-
-function playSoundTurnNotification() {
-  initAudio();
-  if (!audioCtx) return;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-  osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
-  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.25);
+  osc.stop(audioCtx.currentTime + 0.1);
 }
 
 // Elementos DOM
@@ -64,11 +48,6 @@ const modalRegras = document.getElementById('modal-regras');
 const btnAbrirRegras = document.getElementById('btn-abrir-regras');
 const btnFecharRegras = document.getElementById('btn-fechar-regras');
 
-const modalSumula = document.getElementById('modal-sumula');
-const btnAbrirSumula = document.getElementById('btn-abrir-sumula');
-const btnFecharSumula = document.getElementById('btn-fechar-sumula');
-const conteudoSumula = document.getElementById('conteudo-sumula');
-
 const modalQRCode = document.getElementById('modal-qrcode');
 const btnAbrirQRCode = document.getElementById('btn-abrir-qrcode');
 const btnFecharQRCode = document.getElementById('btn-fechar-qrcode');
@@ -77,6 +56,8 @@ const btnCopiarLink = document.getElementById('btn-copiar-link');
 
 const selectTemaMesa = document.getElementById('select-tema-mesa');
 const btnAdicionarBot = document.getElementById('btn-adicionar-bot');
+const btnIniciarPartida = document.getElementById('btn-iniciar-partida');
+const btnProntoLobby = document.getElementById('btn-pronto-lobby');
 
 const btnPedirTruco = document.getElementById('btn-pedir-truco');
 const modalTruco = document.getElementById('modal-truco');
@@ -96,6 +77,8 @@ const overlayZap = document.getElementById('overlay-zap');
 const textoEfeitoZap = document.getElementById('texto-efeito-zap');
 const cartaZapGrande = document.getElementById('carta-zap-grande');
 const overlayEmbaralhar = document.getElementById('overlay-embaralhar');
+const overlayContagem = document.getElementById('overlay-contagem');
+const numeroContagem = document.getElementById('numero-contagem');
 
 const modalDesconexao = document.getElementById('modal-desconexao');
 const textoModalDesconexao = document.getElementById('texto-modal-desconexao');
@@ -103,6 +86,15 @@ const btnConfirmarDesconexao = document.getElementById('btn-confirmar-desconexao
 
 const timerContainer = document.getElementById('timer-turn');
 const timerSpan = document.getElementById('tempo-restante');
+
+// Chat DOM
+const btnToggleChat = document.getElementById('btn-toggle-chat');
+const boxChatSlide = document.getElementById('box-chat-slide');
+const btnFecharChat = document.getElementById('btn-fechar-chat');
+const btnEnviarChat = document.getElementById('btn-enviar-chat');
+const inputMsgChat = document.getElementById('input-msg-chat');
+const mensagensChat = document.getElementById('mensagens-chat');
+const badgeChatUnread = document.getElementById('badge-chat-unread');
 
 let meuApelido = '';
 let meuAvatar = '🥸';
@@ -113,27 +105,48 @@ let numRodadaAtual = 1;
 let eMinhaVez = false;
 let bloqueioJogada = false;
 let intervalTimer = null;
-let sumulaMao = [];
+let chatAberto = false;
+let souDonoSala = false;
 
-// Troca de Tema
-selectTemaMesa.onchange = (e) => {
-  document.body.className = e.target.value;
+// Gestão de Chat Retrátil
+btnToggleChat.onclick = () => {
+  chatAberto = !chatAberto;
+  if (chatAberto) {
+    boxChatSlide.classList.add('aberto');
+    badgeChatUnread.style.display = 'none';
+  } else {
+    boxChatSlide.classList.remove('aberto');
+  }
+};
+btnFecharChat.onclick = () => {
+  chatAberto = false;
+  boxChatSlide.classList.remove('aberto');
 };
 
-// Auto-Preenchimento por Parâmetro URL (Link de Convite)
-window.onload = () => {
-  const params = new URLSearchParams(window.location.search);
-  const salaUrl = params.get('sala');
-  if (salaUrl) {
-    document.getElementById('input-sala').value = salaUrl;
+btnEnviarChat.onclick = () => {
+  const texto = inputMsgChat.value.trim();
+  if (texto) {
+    socket.emit('enviarChat', texto);
+    inputMsgChat.value = '';
   }
 };
 
+socket.on('receberChat', (data) => {
+  const p = document.createElement('p');
+  p.innerHTML = `<strong style="color:var(--gold-primary);">${data.apelido}:</strong> ${data.texto}`;
+  mensagensChat.appendChild(p);
+  mensagensChat.scrollTop = mensagensChat.scrollHeight;
+
+  if (!chatAberto) {
+    badgeChatUnread.style.display = 'flex';
+  }
+});
+
+// Troca de Tema
+selectTemaMesa.onchange = (e) => { document.body.className = e.target.value; };
+
 btnAbrirRegras.onclick = () => modalRegras.style.display = 'flex';
 btnFecharRegras.onclick = () => modalRegras.style.display = 'none';
-
-btnAbrirSumula.onclick = () => modalSumula.style.display = 'flex';
-btnFecharSumula.onclick = () => modalSumula.style.display = 'none';
 
 btnAbrirQRCode.onclick = () => {
   const link = `${window.location.origin}/?sala=${encodeURIComponent(nomeSalaAtual)}`;
@@ -178,31 +191,65 @@ socket.on('sucessoEntrada', (data) => {
   meuApelido = data.apelido;
   meuTime = data.time;
   nomeSalaAtual = data.nomeSala;
+  souDonoSala = data.isDono;
+
   modalDesconexao.style.display = 'none';
   loginContainer.style.display = 'none';
   appContainer.style.display = 'flex';
+  btnToggleChat.style.display = 'flex';
+
   document.getElementById('label-nome-sala').innerText = data.nomeSala;
   document.getElementById('meu-info').innerText = `${meuAvatar} ${meuApelido} (Time ${meuTime})`;
-
-  // Guardar Sessão Local para Reconexão Automática
-  localStorage.setItem('truco_sessao', JSON.stringify({ apelido: meuApelido, avatar: meuAvatar, nomeSala: nomeSalaAtual }));
 });
 
-socket.on('atualizarJogadores', (jogadores) => {
+socket.on('atualizarJogadores', (data) => {
+  const { jogadores, jogoIniciado } = data;
   const timeA = jogadores.filter(j => j.time === 'A').map(j => `${j.avatar || ''} ${j.apelido}`).join(' & ');
   const timeB = jogadores.filter(j => j.time === 'B').map(j => `${j.avatar || ''} ${j.apelido}`).join(' & ');
   document.getElementById('nome-time-a').innerText = timeA || 'Aguardando...';
   document.getElementById('nome-time-b').innerText = timeB || 'Aguardando...';
 
-  // Exibe botão de adicionar BOT se for o criador/primeiro jogador e faltar gente
-  if (jogadores.length > 0 && jogadores[0].apelido === meuApelido && jogadores.length < 4) {
-    btnAdicionarBot.style.display = 'inline-block';
+  // Controle do Lobby de Ações
+  if (!jogoIniciado) {
+    if (souDonoSala) {
+      btnAdicionarBot.style.display = jogadores.length < 4 ? 'inline-block' : 'none';
+      btnIniciarPartida.style.display = jogadores.length >= 2 ? 'inline-block' : 'none';
+      btnProntoLobby.style.display = 'none';
+    } else {
+      btnAdicionarBot.style.display = 'none';
+      btnIniciarPartida.style.display = 'none';
+      btnProntoLobby.style.display = 'inline-block';
+    }
   } else {
     btnAdicionarBot.style.display = 'none';
+    btnIniciarPartida.style.display = 'none';
+    btnProntoLobby.style.display = 'none';
   }
 });
 
 btnAdicionarBot.onclick = () => socket.emit('adicionarBot');
+
+btnProntoLobby.onclick = () => {
+  btnProntoLobby.style.display = 'none';
+  socket.emit('jogadorPronto');
+};
+
+btnIniciarPartida.onclick = () => socket.emit('solicitarInicioPartida');
+
+socket.on('iniciarContagemRegressiva', () => {
+  overlayContagem.style.display = 'flex';
+  let c = 5;
+  numeroContagem.innerText = c;
+  let t = setInterval(() => {
+    c--;
+    if (c > 0) {
+      numeroContagem.innerText = c;
+    } else {
+      clearInterval(t);
+      overlayContagem.style.display = 'none';
+    }
+  }, 1000);
+});
 
 socket.on('atualizarTrofeus', (data) => {
   document.getElementById('trofeus-a').innerText = `🏆 ${data.a}`;
@@ -233,7 +280,7 @@ socket.on('solicitacaoTruco', (data) => {
       btnAumentarTruco.innerText = prox;
     }
   } else {
-    document.getElementById('status-vez').innerText = `Aguardando resposta do adversário (${data.valorProposto} pts)...`;
+    document.getElementById('status-vez').innerText = `Aguardando resposta do adversário...`;
   }
 });
 
@@ -265,7 +312,7 @@ socket.on('decisaoMao11Pendente', (data) => {
   if (data.timeNaMao11 === meuTime) {
     modalMao11.style.display = 'block';
   } else {
-    document.getElementById('status-vez').innerText = `Aguardando o Time ${data.timeNaMao11} decidir a Mão de 11...`;
+    document.getElementById('status-vez').innerText = `Time ${data.timeNaMao11} decidindo Mão de 11...`;
   }
 });
 
@@ -278,23 +325,14 @@ function atualizarBolinhas(historicoRodadas) {
 
   historicoRodadas.forEach((res, idx) => {
     if (idx >= 3) return;
-    if (res === 'A') {
-      bolinhasA[idx].classList.add('vitoria');
-      bolinhasB[idx].classList.add('derrota');
-    } else if (res === 'B') {
-      bolinhasB[idx].classList.add('vitoria');
-      bolinhasA[idx].classList.add('derrota');
-    } else if (res === 'Empate') {
-      bolinhasA[idx].classList.add('empate');
-      bolinhasB[idx].classList.add('empate');
-    }
+    if (res === 'A') { bolinhasA[idx].classList.add('vitoria'); bolinhasB[idx].classList.add('derrota'); }
+    else if (res === 'B') { bolinhasB[idx].classList.add('vitoria'); bolinhasA[idx].classList.add('derrota'); }
+    else if (res === 'Empate') { bolinhasA[idx].classList.add('empate'); bolinhasB[idx].classList.add('empate'); }
   });
 }
 
 socket.on('novaMao', (data) => {
   overlayEmbaralhar.style.display = 'flex';
-  sumulaMao = [];
-  conteudoSumula.innerHTML = '<p>Mão iniciada...</p>';
 
   setTimeout(() => {
     overlayEmbaralhar.style.display = 'none';
@@ -335,12 +373,7 @@ socket.on('novaMao', (data) => {
 socket.on('atualizarRodadasMao', (historicoRodadas) => {
   atualizarBolinhas(historicoRodadas);
   numRodadaAtual = historicoRodadas.length + 1;
-
-  if (numRodadaAtual >= 2) {
-    containerEsconderCarta.style.display = 'inline-block';
-  } else {
-    containerEsconderCarta.style.display = 'none';
-  }
+  containerEsconderCarta.style.display = numRodadaAtual >= 2 ? 'inline-block' : 'none';
 });
 
 socket.on('minhasCartas', (data) => {
@@ -375,21 +408,16 @@ socket.on('atualizarMesa', (cartasMesa) => {
   const container = document.getElementById('cartas-mesa');
   container.innerHTML = '';
 
-  cartasMesa.forEach((item, idx) => {
+  cartasMesa.forEach((item) => {
     const cardEl = document.createElement('div');
     if (item.escondida) {
-      cardEl.className = 'carta escuro carta-animada-jogar';
+      cardEl.className = 'carta escuro';
       cardEl.innerText = '🂠';
     } else {
-      cardEl.className = 'carta carta-animada-jogar' + (item.carta.naipe === '♦' || item.carta.naipe === '♥' ? ' vermelho' : '');
+      cardEl.className = 'carta' + (item.carta.naipe === '♦' || item.carta.naipe === '♥' ? ' vermelho' : '');
       cardEl.innerText = `${item.carta.valor}${item.carta.naipe}`;
     }
     container.appendChild(cardEl);
-
-    // Atualizar Súmula
-    const txtCarta = item.escondida ? '[CARTA COBERTA]' : `${item.carta.valor}${item.carta.naipe}`;
-    sumulaMao.push(`<p>• <strong>${item.jogador.apelido}</strong> jogou: ${txtCarta}</p>`);
-    conteudoSumula.innerHTML = sumulaMao.join('');
   });
 });
 
@@ -400,43 +428,25 @@ socket.on('efeitoManilhaZap', (data) => {
   else cartaZapGrande.classList.remove('vermelho');
 
   overlayZap.style.display = 'flex';
-  setTimeout(() => overlayZap.style.display = 'none', 1600);
+  setTimeout(() => overlayZap.style.display = 'none', 1400);
 });
 
-// Sistema de Reconexão e Tolerância
+// Reconexão e Notificação
 socket.on('jogadorDesconectadoTemp', (data) => {
   textoModalDesconexao.innerText = `${data.apelido} desconectou-se. Aguardando reconexão (30s)...`;
   modalDesconexao.style.display = 'flex';
 });
 
-socket.on('jogadorReconectou', (data) => {
-  modalDesconexao.style.display = 'none';
-});
+socket.on('jogadorReconectou', () => modalDesconexao.style.display = 'none');
 
 socket.on('jogadorDesconectado', (data) => {
   if (intervalTimer) clearInterval(intervalTimer);
   timerContainer.style.display = 'none';
-  textoModalDesconexao.innerText = `O jogador (${data.apelido}) desconectou-se definitivamente.`;
+  textoModalDesconexao.innerText = `O jogador (${data.apelido}) desconectou-se.`;
   modalDesconexao.style.display = 'flex';
 });
 
-btnConfirmarDesconexao.onclick = () => {
-  localStorage.removeItem('truco_sessao');
-  socket.emit('destruirSalaForcado');
-  modalDesconexao.style.display = 'none';
-  appContainer.style.display = 'none';
-  loginContainer.style.display = 'block';
-  location.reload();
-};
-
-socket.on('salaDestruida', (msg) => {
-  if (intervalTimer) clearInterval(intervalTimer);
-  localStorage.removeItem('truco_sessao');
-  alert(msg || 'A sala foi encerrada.');
-  modalDesconexao.style.display = 'none';
-  appContainer.style.display = 'none';
-  loginContainer.style.display = 'block';
-});
+btnConfirmarDesconexao.onclick = () => location.reload();
 
 function iniciarTimerTurno(segundos = 20) {
   if (intervalTimer) clearInterval(intervalTimer);
@@ -447,9 +457,7 @@ function iniciarTimerTurno(segundos = 20) {
   intervalTimer = setInterval(() => {
     restante--;
     timerSpan.innerText = restante;
-    if (restante <= 0) {
-      clearInterval(intervalTimer);
-    }
+    if (restante <= 0) clearInterval(intervalTimer);
   }, 1000);
 }
 
@@ -467,7 +475,6 @@ socket.on('atualizarVez', (apelido) => {
     eMinhaVez = (apelido === meuApelido);
 
     if (eMinhaVez) {
-      playSoundTurnNotification();
       iniciarTimerTurno(20);
     } else {
       timerContainer.style.display = 'none';
@@ -476,12 +483,9 @@ socket.on('atualizarVez', (apelido) => {
   }
 });
 
-// Reações Flutuantes (Emojis)
+// Reações
 document.querySelectorAll('.btn-emoji').forEach(btn => {
-  btn.onclick = () => {
-    const emoji = btn.getAttribute('data-emoji');
-    socket.emit('enviarReacao', emoji);
-  };
+  btn.onclick = () => socket.emit('enviarReacao', btn.getAttribute('data-emoji'));
 });
 
 socket.on('receberReacao', (data) => {
@@ -489,33 +493,10 @@ socket.on('receberReacao', (data) => {
   const el = document.createElement('div');
   el.className = 'emoji-flutuante';
   el.innerText = data.emoji;
-  el.style.left = `${Math.random() * 80 + 10}%`;
-  el.style.top = '60%';
+  el.style.left = `${Math.random() * 70 + 15}%`;
+  el.style.top = '50%';
   container.appendChild(el);
   setTimeout(() => el.remove(), 2000);
 });
 
-// Chat de Texto em Tempo Real
-const btnEnviarChat = document.getElementById('btn-enviar-chat');
-const inputMsgChat = document.getElementById('input-msg-chat');
-const mensagensChat = document.getElementById('mensagens-chat');
-
-btnEnviarChat.onclick = () => {
-  const texto = inputMsgChat.value.trim();
-  if (texto) {
-    socket.emit('enviarChat', texto);
-    inputMsgChat.value = '';
-  }
-};
-
-socket.on('receberChat', (data) => {
-  const p = document.createElement('p');
-  p.innerHTML = `<strong>${data.apelido}:</strong> ${data.texto}`;
-  mensagensChat.appendChild(p);
-  mensagensChat.scrollTop = mensagensChat.scrollHeight;
-});
-
-socket.on('fimDePartida', (data) => {
-  if (intervalTimer) clearInterval(intervalTimer);
-  alert(`🏆 Fim de partida! Vencedor: Time ${data.vencedor}`);
-});
+socket.on('fimDePartida', (data) => alert(`🏆 Fim de partida! Vencedor: Time ${data.vencedor}`));
