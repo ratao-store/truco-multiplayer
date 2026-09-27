@@ -1,12 +1,19 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static('public'));
+// --- CORREÇÃO DA ROTA PARA O RENDER ---
+app.use(express.static(__dirname));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+// --------------------------------------
 
 const salas = {};
 
@@ -272,7 +279,6 @@ io.on('connection', (socket) => {
 
     io.to(socket.nomeSala).emit('atualizarMesa', sala.jogadasRodadaAtual);
 
-    // Se todos os jogadores já jogaram na rodada atual
     if (sala.jogadasRodadaAtual.length === sala.jogadores.length) {
       setTimeout(() => {
         let maiorForca = -1;
@@ -292,13 +298,11 @@ io.on('connection', (socket) => {
 
         if (empate) {
           sala.historicoRodadas.push('Empate');
-          // Em caso de canga (empate), torna quem começou a rodada anterior
           sala.indiceVez = sala.primeiroDaRodadaAtual;
         } else {
           sala.rodadasGanhas[vencedorJogada.time] += 1;
           sala.historicoRodadas.push(vencedorJogada.time);
           
-          // REGRA CORRIGIDA: Quem matou a carta (venceu a rodada) joga primeiro na próxima
           sala.indiceVez = vencedorJogada.jogadorIndex;
           sala.primeiroDaRodadaAtual = vencedorJogada.jogadorIndex;
         }
@@ -313,7 +317,6 @@ io.on('connection', (socket) => {
         }
       }, 1500);
     } else {
-      // Passa a vez para o próximo jogador dentro da mesma rodada
       sala.indiceVez = (sala.indiceVez + 1) % sala.jogadores.length;
       io.to(socket.nomeSala).emit('atualizarVez', sala.jogadores[sala.indiceVez].apelido);
     }
