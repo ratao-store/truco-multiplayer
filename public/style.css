@@ -1,20 +1,20 @@
 :root {
-  --bg-gradient: radial-gradient(circle at center, #1e4d2b 0%, #0d2818 100%);
-  --gold-primary: #f39c12;
-  --gold-hover: #d35400;
-  --gold-gradient: linear-gradient(135deg, #f1c40f, #e67e22);
+  --bg-gradient: radial-gradient(circle at center, #1b4d2e 0%, #081c10 100%);
+  --gold-primary: #f1c40f;
+  --gold-hover: #e67e22;
+  --gold-gradient: linear-gradient(135deg, #f1c40f, #d35400);
   --green-btn: linear-gradient(135deg, #2ecc71, #27ae60);
   --red-btn: linear-gradient(135deg, #e74c3c, #c0392b);
   --blue-btn: linear-gradient(135deg, #3498db, #2980b9);
   --card-bg: #ffffff;
-  --panel-bg: rgba(10, 25, 15, 0.85);
+  --panel-bg: rgba(12, 32, 20, 0.9);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   user-select: none;
 }
 
@@ -28,7 +28,7 @@ body {
   overflow: hidden;
 }
 
-/* MODAL DE REGRAS */
+/* MODAL REGRAS */
 .modal-regras-card {
   max-height: 80vh;
   overflow-y: auto;
@@ -82,9 +82,16 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid var(--gold-primary);
   color: #f1c40f;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   font-size: 0.85rem;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.btn-regras:hover {
+  background: var(--gold-primary);
+  color: #000;
 }
 
 .label-manilha {
@@ -94,12 +101,12 @@ body {
   margin-top: 5px;
 }
 
-/* OVERLAY EMBARALHAR */
+/* EMBARALHAR OVERLAY */
 .overlay-embaralhar {
   position: fixed;
   top: 0; left: 0;
   width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(5px);
   z-index: 9998;
   display: flex;
@@ -159,7 +166,7 @@ body {
   100% { opacity: 1; }
 }
 
-/* OVERLAY DESCONEXÃO */
+/* OVERLAY MODAIS */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0;
@@ -186,7 +193,7 @@ body {
 .modal-icone { font-size: 3rem; margin-bottom: 10px; }
 .botoes-modal-desconexao { display: flex; flex-direction: column; gap: 10px; }
 
-/* ZAP OVERLAY */
+/* ZAP ANIMATION */
 .overlay-zap {
   position: fixed;
   top: 0; left: 0;
@@ -234,28 +241,30 @@ body {
   40%, 80% { transform: translate(3px, -2px); }
 }
 
-/* LOGIN & CONTAINER */
+/* TELA DE LOGIN */
 #login-container { width: 100%; max-width: 420px; padding: 20px; }
 .card-login {
   background: var(--panel-bg);
   border: 2px solid var(--gold-primary);
   border-radius: 16px; padding: 30px 25px;
   text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
 }
-.card-login h2 { color: var(--gold-primary); margin-bottom: 20px; }
+.card-login h2 { color: var(--gold-primary); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
 
 .form-group { margin-bottom: 18px; text-align: left; }
 .form-group label { display: block; font-size: 0.9rem; color: #ddd; margin-bottom: 6px; }
 .form-group input, .form-group select {
   width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333;
-  font-size: 1rem; font-weight: 600;
+  font-size: 1rem; font-weight: 600; outline: none;
 }
 
-button { cursor: pointer; border: none; border-radius: 8px; font-weight: bold; }
+button { cursor: pointer; border: none; border-radius: 8px; font-weight: bold; transition: transform 0.1s, opacity 0.2s; }
+button:active { transform: scale(0.97); }
 .btn-primary { width: 100%; padding: 14px; background: var(--gold-gradient); color: #000; font-size: 1.1rem; margin-top: 10px; }
 .btn-secondary { width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.15); color: #fff; margin-top: 12px; border: 1px solid rgba(255,255,255,0.3); }
 
-/* GAME CONTAINER */
+/* APP DE JOGO */
 #app {
   width: 100%; max-width: 900px; height: 100vh; max-height: 900px;
   display: flex; flex-direction: column; justify-content: space-between; padding: 15px;
@@ -264,6 +273,7 @@ button { cursor: pointer; border: none; border-radius: 8px; font-weight: bold; }
 header {
   background: var(--panel-bg); border: 2px solid var(--gold-primary);
   border-radius: 14px; padding: 12px 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
 
 .info-sala { font-size: 0.95rem; color: #ccc; }
@@ -284,37 +294,48 @@ header {
 .bolinha.empate { background: #e67e22; box-shadow: 0 0 8px #e67e22; }
 
 .vs { font-weight: 900; color: #777; padding: 0 10px; }
-.status { text-align: center; font-weight: 600; color: #2ecc71; font-size: 1.05rem; }
+
+.status-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+}
+.status { font-weight: bold; color: #2ecc71; font-size: 1.05rem; }
+.timer-turn { color: #f39c12; font-weight: bold; font-size: 0.95rem; }
 
 /* MESA */
 main { flex: 1; display: flex; align-items: center; justify-content: center; margin: 15px 0; }
 .mesa {
-  width: 100%; height: 100%; background: rgba(0, 0, 0, 0.25);
-  border: 3px dashed rgba(243, 156, 18, 0.3); border-radius: 20px;
+  width: 100%; height: 100%; background: rgba(0, 0, 0, 0.35);
+  border: 3px dashed rgba(243, 156, 18, 0.4); border-radius: 20px;
   display: flex; align-items: center; justify-content: space-around; padding: 20px;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
 }
 
 .area-vira, .area-jogadas { text-align: center; }
-.area-vira p, .area-jogadas p { font-size: 0.85rem; color: #aaa; margin-bottom: 8px; }
+.area-vira p, .area-jogadas p { font-size: 0.85rem; color: #aaa; margin-bottom: 8px; text-transform: uppercase; }
 
 /* CARTAS */
 .cartas-container { display: flex; gap: 12px; justify-content: center; }
 .carta {
-  width: 70px; height: 100px; background: var(--card-bg); border-radius: 10px;
-  color: #111; font-size: 1.5rem; font-weight: bold;
+  width: 72px; height: 105px; background: var(--card-bg); border-radius: 10px;
+  color: #111; font-size: 1.6rem; font-weight: bold;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.4); cursor: pointer; transition: transform 0.2s;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.5); cursor: pointer; transition: transform 0.2s;
 }
 .carta.vermelho { color: #e74c3c; }
 .carta.escuro { background: #2c3e50; color: #ecf0f1; border: 2px solid #34495e; }
-.carta:hover { transform: translateY(-10px); }
+.carta:hover { transform: translateY(-8px); }
 .carta.vira { cursor: default; border: 2px solid var(--gold-primary); }
 .carta.vira:hover { transform: none; }
+.carta.disabled { opacity: 0.5; pointer-events: none; }
 
 /* FOOTER */
 footer {
   background: var(--panel-bg); border: 2px solid var(--gold-primary);
   border-radius: 14px; padding: 15px; text-align: center; position: relative;
+  box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
 }
 #meu-info { font-size: 0.95rem; color: var(--gold-primary); margin-bottom: 12px; font-weight: 600; }
 .controles-jogador { margin-bottom: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -326,7 +347,7 @@ footer {
 
 /* MODAIS TRUCO */
 .modal-truco {
-  position: absolute; top: -125px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: -135px; left: 50%; transform: translateX(-50%);
   background: rgba(15, 15, 15, 0.95); border: 2px solid var(--gold-primary);
   border-radius: 12px; padding: 15px 20px; z-index: 100; width: 90%; max-width: 400px;
 }
