@@ -319,17 +319,26 @@ btnCorrerRodada.onclick = () => {
   }
 };
 
-// Voz quando alguém corre
+// VOZ: jogador correu
 socket.on('jogadorCorreu', (data) => {
   falarTexto(`${data.apelido} correu!`);
+});
+
+// VOZ: jogador aceitou o truco
+socket.on('jogadorAceitouTruco', (data) => {
+  falarTexto(`${data.apelido} aceitou ${data.valor}!`);
 });
 
 socket.on('solicitacaoTruco', (data) => {
   let textoVoz = 'pediu truco!';
 
-  if (data.valorProposto === 6) textoVoz = 'pediu seis!';
-  else if (data.valorProposto === 9) textoVoz = 'pediu nove!';
-  else if (data.valorProposto === 12) textoVoz = 'pediu doze!';
+  if (data.valorProposto === 6) {
+    textoVoz = 'pediu seis!';
+  } else if (data.valorProposto === 9) {
+    textoVoz = 'pediu nove!';
+  } else if (data.valorProposto === 12) {
+    textoVoz = 'pediu doze!';
+  }
 
   falarTexto(`${data.pediuApelido} ${textoVoz}`);
 
@@ -362,7 +371,7 @@ socket.on('solicitacaoTruco', (data) => {
     }
   } else {
     document.getElementById('status-vez').innerText =
-      `Aguardando resposta do adversário...`;
+      'Aguardando resposta do adversário...';
   }
 });
 
@@ -396,7 +405,6 @@ btnAumentarTruco.onclick = () => {
 socket.on('atualizarEstadoTruco', (data) => {
   valorMaoAtual = data.valorMao;
 
-  // Depois que a Mão de 11 foi aceita, a decisão terminou.
   if (data.isMaoDe11) {
     aguardandoDecisaoMao11 = false;
     modalMao11.style.display = 'none';
@@ -418,39 +426,34 @@ socket.on('atualizarEstadoTruco', (data) => {
   ) {
     btnPedirTruco.style.display = 'inline-block';
 
-    if (valorMaoAtual === 1)
+    if (valorMaoAtual === 1) {
       btnPedirTruco.innerText = 'TRUCO!';
-    else if (valorMaoAtual === 3)
+    } else if (valorMaoAtual === 3) {
       btnPedirTruco.innerText = 'SEIS!';
-    else if (valorMaoAtual === 6)
+    } else if (valorMaoAtual === 6) {
       btnPedirTruco.innerText = 'NOVE!';
-    else if (valorMaoAtual === 9)
+    } else if (valorMaoAtual === 9) {
       btnPedirTruco.innerText = '12!';
+    }
   } else {
     btnPedirTruco.style.display = 'none';
   }
 });
 
-// Mão de 11
 btnAceitarMao11.onclick = () => {
   aguardandoDecisaoMao11 = false;
   modalMao11.style.display = 'none';
-
   socket.emit('respostaMao11', true);
 };
 
 btnCorrerMao11.onclick = () => {
   aguardandoDecisaoMao11 = false;
   modalMao11.style.display = 'none';
-
   socket.emit('respostaMao11', false);
 };
 
 socket.on('decisaoMao11Pendente', (data) => {
   aguardandoDecisaoMao11 = true;
-
-  // Enquanto a decisão da Mão de 11 estiver pendente,
-  // ninguém usa o botão genérico CORRER.
   btnCorrerRodada.style.display = 'none';
 
   if (data.timeNaMao11 === meuTime) {
@@ -495,7 +498,7 @@ socket.on('novaMao', (data) => {
   aguardandoDecisaoMao11 = false;
   modalMao11.style.display = 'none';
 
-  // Limpa imediatamente qualquer carta visual da mão anterior.
+  // Limpa imediatamente as cartas antigas da mesa.
   const mesaEl = document.getElementById('cartas-mesa');
 
   if (mesaEl) {
@@ -528,7 +531,6 @@ socket.on('novaMao', (data) => {
 
     modalTruco.style.display = 'none';
 
-    // O evento decisaoMao11Pendente controla o popup quando necessário.
     if (!aguardandoDecisaoMao11) {
       modalMao11.style.display = 'none';
     }
@@ -568,13 +570,10 @@ socket.on('novaMao', (data) => {
 socket.on('atualizarRodadasMao', (historicoRodadas) => {
   atualizarBolinhas(historicoRodadas);
 
-  numRodadaAtual =
-    historicoRodadas.length + 1;
+  numRodadaAtual = historicoRodadas.length + 1;
 
   containerEsconderCarta.style.display =
-    numRodadaAtual >= 2
-      ? 'inline-block'
-      : 'none';
+    numRodadaAtual >= 2 ? 'inline-block' : 'none';
 });
 
 socket.on('minhasCartas', (data) => {
@@ -599,15 +598,13 @@ socket.on('minhasCartas', (data) => {
             : ''
         );
 
-      cardEl.innerText =
-        `${c.valor}${c.naipe}`;
+      cardEl.innerText = `${c.valor}${c.naipe}`;
     }
 
     cardEl.onclick = () => {
       if (!eMinhaVez || bloqueioJogada) return;
 
       bloqueioJogada = true;
-
       playSoundPlayCard();
 
       const esconder =
@@ -630,7 +627,6 @@ socket.on('atualizarMesa', (cartasMesa) => {
   const container =
     document.getElementById('cartas-mesa');
 
-  // Sempre limpa antes de redesenhar.
   container.innerHTML = '';
 
   cartasMesa.forEach((item) => {
@@ -659,9 +655,7 @@ socket.on('atualizarMesa', (cartasMesa) => {
 
 socket.on('efeitoManilhaZap', (data) => {
   textoEfeitoZap.innerText =
-    data.isZap
-      ? '💥 ZAP! 💥'
-      : 'MANILHA!';
+    data.isZap ? '💥 ZAP! 💥' : 'MANILHA!';
 
   cartaZapGrande.innerText =
     `${data.carta.valor}${data.carta.naipe}`;
@@ -677,10 +671,9 @@ socket.on('efeitoManilhaZap', (data) => {
 
   overlayZap.style.display = 'flex';
 
-  setTimeout(
-    () => overlayZap.style.display = 'none',
-    1400
-  );
+  setTimeout(() => {
+    overlayZap.style.display = 'none';
+  }, 1400);
 });
 
 // Reconexão e Notificação
@@ -696,8 +689,7 @@ socket.on('jogadorReconectou', () =>
 );
 
 socket.on('jogadorDesconectado', (data) => {
-  if (intervalTimer)
-    clearInterval(intervalTimer);
+  if (intervalTimer) clearInterval(intervalTimer);
 
   timerContainer.style.display = 'none';
 
@@ -711,8 +703,9 @@ btnConfirmarDesconexao.onclick = () =>
   location.reload();
 
 function iniciarTimerTurno(segundos = 20) {
-  if (intervalTimer)
+  if (intervalTimer) {
     clearInterval(intervalTimer);
+  }
 
   let restante = segundos;
 
@@ -724,8 +717,9 @@ function iniciarTimerTurno(segundos = 20) {
 
     timerSpan.innerText = restante;
 
-    if (restante <= 0)
+    if (restante <= 0) {
       clearInterval(intervalTimer);
+    }
   }, 1000);
 }
 
@@ -737,16 +731,15 @@ socket.on('atualizarVez', (apelido) => {
 
   if (apelido.includes('Aguardando')) {
     statusEl.innerText = apelido;
-
     eMinhaVez = false;
 
     timerContainer.style.display = 'none';
 
-    if (intervalTimer)
+    if (intervalTimer) {
       clearInterval(intervalTimer);
+    }
   } else {
-    statusEl.innerText =
-      `Vez de: ${apelido}`;
+    statusEl.innerText = `Vez de: ${apelido}`;
 
     eMinhaVez =
       apelido === meuApelido;
@@ -756,8 +749,9 @@ socket.on('atualizarVez', (apelido) => {
     } else {
       timerContainer.style.display = 'none';
 
-      if (intervalTimer)
+      if (intervalTimer) {
         clearInterval(intervalTimer);
+      }
     }
   }
 });
@@ -773,15 +767,11 @@ document.querySelectorAll('.btn-emoji').forEach(btn => {
 
 socket.on('receberReacao', (data) => {
   const container =
-    document.getElementById(
-      'container-reacoes-mesa'
-    );
+    document.getElementById('container-reacoes-mesa');
 
-  const el =
-    document.createElement('div');
+  const el = document.createElement('div');
 
   el.className = 'emoji-flutuante';
-
   el.innerText = data.emoji;
 
   el.style.left =
@@ -791,37 +781,26 @@ socket.on('receberReacao', (data) => {
 
   container.appendChild(el);
 
-  setTimeout(
-    () => el.remove(),
-    2000
-  );
+  setTimeout(() => el.remove(), 2000);
 });
 
-// Fim da partida
 socket.on('fimDePartida', (data) => {
-  // Zera visualmente os pontos.
   document.getElementById('pontos-a').innerText =
     data.pontosA ?? 0;
 
   document.getElementById('pontos-b').innerText =
     data.pontosB ?? 0;
 
-  // Limpa as bolinhas das rodadas.
   atualizarBolinhas([]);
 
-  // Limpa cartas da mesa.
   document.getElementById('cartas-mesa').innerHTML = '';
-
-  // Limpa cartas do jogador.
   document.getElementById('minhas-cartas').innerHTML = '';
 
-  // Fecha qualquer modal aberto.
   modalTruco.style.display = 'none';
   modalMao11.style.display = 'none';
 
   aguardandoDecisaoMao11 = false;
 
-  // Esconde controles da mão encerrada.
   btnPedirTruco.style.display = 'none';
   btnCorrerRodada.style.display = 'none';
 
