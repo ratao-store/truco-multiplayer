@@ -99,7 +99,34 @@ function iniciarNovaMao(sala) {
 
   if (sala.isMaoDe11) {
     io.to(sala.nome).emit('decisaoMao11Pendente', { timeNaMao11: sala.timeNaMao11 });
+    
+    // Tratamento automático se quem estiver na mão de 11 for Bot
+    let timeMao11Bot = sala.jogadores.find(j => j.time === sala.timeNaMao11 && j.isBot);
+    if (timeMao11Bot) {
+      setTimeout(() => {
+        let aceitar = Math.random() < 0.7;
+        processarRespostaMao11(sala, sala.timeNaMao11, aceitar);
+      }, 1500);
+    }
   } else {
+    iniciarTimerTurno(sala);
+  }
+}
+
+function processarRespostaMao11(sala, time, aceitou) {
+  if (sala.mao11Decidida) return;
+  sala.mao11Decidida = true;
+
+  let timeAdversario = time === 'A' ? 'B' : 'A';
+
+  if (!aceitou) {
+    // Se correr da mão de 11, o adversário ganha 1 ponto
+    sala.valorMao = 1;
+    finalizarMao(sala, timeAdversario);
+  } else {
+    // Se aceitar, joga valendo 3 pontos
+    sala.valorMao = 3;
+    io.to(sala.nome).emit('atualizarEstadoTruco', { valorMao: sala.valorMao, isMaoDe11: true });
     iniciarTimerTurno(sala);
   }
 }
@@ -111,7 +138,7 @@ function verificarAcaoBot(sala) {
   let temManilhaOuCartaBoa = jogadorAtual.cartas.some(c => c.valor === sala.valorManilha || ['3', '2', 'A'].includes(c.valor));
   let roubarBluff = Math.random() < 0.25;
 
-  if ((temManilhaOuCartaBoa || roubarBluff) && sala.ultimoPediuTime !== jogadorAtual.time && !sala.isMaoDe11 && sala.valorMao < 12) {
+  if ((temManilhaOuCartaBoa || roubarBluff) && sala.ultimoPediuTime !== jogadorAtual.time && !sala.isMaoDe11 && !sala.maoDeFerro && sala.valorMao < 12) {
     let proximoValor = sala.valorMao === 1 ? 3 : (sala.valorMao === 3 ? 6 : (sala.valorMao === 6 ? 9 : 12));
     sala.propostaTruco = {
       pediuApelido: jogadorAtual.apelido,
@@ -258,12 +285,9 @@ function finalizarMao(sala, timeVencedor) {
     io.to(sala.nome).emit('fimDePartida', { vencedor: campeao });
     io.to(sala.nome).emit('atualizarTrofeus', { a: sala.trofeusA, b: sala.trofeusB });
 
-    // Zera a pontuação e desmarca a flag de jogo iniciado
     sala.pontosA = 0;
     sala.pontosB = 0;
     sala.jogoIniciado = false;
-
-    // Retorna sem iniciar uma nova mão automaticamente
     return;
   }
 
@@ -429,6 +453,27 @@ io.on('connection', (socket) => {
     if (advBot) {
       setTimeout(() => responderTrucoBot(sala, advBot), 1500);
     }
+  });
+
+  socket.on('correrVoluntario', () => {
+    let sala = salas[socket.nomeSala];
+    if (!sala || sala.processandoTurno) return;
+
+    let jogador = sala.jogadores.find(j => j.id === socket.id);
+    if (!jogador) return;
+
+    let timeAdversario = jogador.time === 'A' ? 'B' : 'A';
+    finalizarMao(sala, timeAdversario);
+  });
+
+  socket.on('respostaMao11', (aceitou) => {
+    let sala = salas[socket.nomeSala];
+    if (!sala || !sala.isMaoDe11) return;
+
+    let jogador = sala.jogadores.find(j => j.id === socket.id);
+    if (!jogador || jogador.time !== sala.timeNaMao11) return;
+
+    processarRespostaMao11(sala, jogador.time, aceitou);
   });
 
   socket.on('respostaTruco', ({ aceitou, aumentar }) => {
