@@ -26,6 +26,15 @@ const overlayZap = document.getElementById('overlay-zap');
 const textoEfeitoZap = document.getElementById('texto-efeito-zap');
 const cartaZapGrande = document.getElementById('carta-zap-grande');
 
+// Overlay Embaralhar
+const overlayEmbaralhar = document.getElementById('overlay-embaralhar');
+
+// Modal Desconexão
+const modalDesconexao = document.getElementById('modal-desconexao');
+const textoModalDesconexao = document.getElementById('texto-modal-desconexao');
+const btnConfirmarDesconexao = document.getElementById('btn-confirmar-desconexao');
+const btnAguardarReconexao = document.getElementById('btn-aguardar-reconexao');
+
 let meuApelido = '';
 let meuTime = '';
 let valorMaoAtual = 1;
@@ -72,6 +81,7 @@ socket.on('sucessoEntrada', (data) => {
   meuApelido = data.apelido;
   meuTime = data.time;
 
+  modalDesconexao.style.display = 'none';
   loginContainer.style.display = 'none';
   appContainer.style.display = 'flex';
   
@@ -153,52 +163,68 @@ socket.on('trucoAceito', (data) => {
   }
 });
 
-function atualizarBolinhas(rodadasGanhas) {
+// ATUALIZAR BOLINHAS COM CORES (VERDE, VERMELHO E LARANJA)
+function atualizarBolinhas(historicoRodadas) {
   const bolinhasA = document.querySelectorAll('#bolinhas-a .bolinha');
   const bolinhasB = document.querySelectorAll('#bolinhas-b .bolinha');
 
-  bolinhasA.forEach((b, idx) => {
-    if (idx < rodadasGanhas.A) b.classList.add('ativa');
-    else b.classList.remove('ativa');
-  });
+  // Limpa classes anteriores
+  bolinhasA.forEach(b => b.className = 'bolinha');
+  bolinhasB.forEach(b => b.className = 'bolinha');
 
-  bolinhasB.forEach((b, idx) => {
-    if (idx < rodadasGanhas.B) b.classList.add('ativa');
-    else b.classList.remove('ativa');
+  historicoRodadas.forEach((resultado, index) => {
+    if (index >= 3) return;
+
+    if (resultado === 'A') {
+      bolinhasA[index].classList.add('vitoria');
+      bolinhasB[index].classList.add('derrota');
+    } else if (resultado === 'B') {
+      bolinhasB[index].classList.add('vitoria');
+      bolinhasA[index].classList.add('derrota');
+    } else if (resultado === 'Empate') {
+      bolinhasA[index].classList.add('empate');
+      bolinhasB[index].classList.add('empate');
+    }
   });
 }
 
 socket.on('novaMao', (data) => {
-  valorMaoAtual = data.valorMao;
-  document.getElementById('label-valor-mao').innerText = valorMaoAtual;
-  document.getElementById('pontos-a').innerText = data.pontosA;
-  document.getElementById('pontos-b').innerText = data.pontosB;
-  document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
+  // Exibe a animação de embaralhar
+  overlayEmbaralhar.style.display = 'flex';
 
-  modalTruco.style.display = 'none';
+  setTimeout(() => {
+    overlayEmbaralhar.style.display = 'none';
 
-  // REGRA DE 11 PONTOS: Bloqueia botão de Truco na mão de 11
-  if (data.pontosA === 11 || data.pontosB === 11) {
-    btnPedirTruco.style.display = 'none';
-  } else {
-    btnPedirTruco.style.display = 'inline-block';
-    btnPedirTruco.innerText = 'TRUCO!';
-  }
+    valorMaoAtual = data.valorMao;
+    document.getElementById('label-valor-mao').innerText = valorMaoAtual;
+    document.getElementById('pontos-a').innerText = data.pontosA;
+    document.getElementById('pontos-b').innerText = data.pontosB;
+    document.getElementById('status-vez').innerText = `Vez de: ${data.vez}`;
 
-  atualizarBolinhas({ A: 0, B: 0 });
+    modalTruco.style.display = 'none';
 
-  const viraEl = document.getElementById('carta-vira');
-  if (data.maoDeFerro) {
-    viraEl.innerText = '🂠';
-    viraEl.className = 'carta vira escuro';
-  } else {
-    viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
-    viraEl.className = 'carta vira' + (data.vira.naipe === '♦' || data.vira.naipe === '♥' ? ' vermelho' : '');
-  }
+    if (data.pontosA === 11 || data.pontosB === 11) {
+      btnPedirTruco.style.display = 'none';
+    } else {
+      btnPedirTruco.style.display = 'inline-block';
+      btnPedirTruco.innerText = 'TRUCO!';
+    }
+
+    atualizarBolinhas([]);
+
+    const viraEl = document.getElementById('carta-vira');
+    if (data.maoDeFerro) {
+      viraEl.innerText = '🂠';
+      viraEl.className = 'carta vira escuro';
+    } else {
+      viraEl.innerText = `${data.vira.valor}${data.vira.naipe}`;
+      viraEl.className = 'carta vira' + (data.vira.naipe === '♦' || data.vira.naipe === '♥' ? ' vermelho' : '');
+    }
+  }, 1200); // 1.2 segundos de animação
 });
 
-socket.on('atualizarRodadasMao', (rodadasGanhas) => {
-  atualizarBolinhas(rodadasGanhas);
+socket.on('atualizarRodadasMao', (historicoRodadas) => {
+  atualizarBolinhas(historicoRodadas);
 });
 
 socket.on('minhasCartas', (data) => {
@@ -252,6 +278,33 @@ socket.on('efeitoManilhaZap', (data) => {
   setTimeout(() => {
     overlayZap.style.display = 'none';
   }, 1600);
+});
+
+// EVENTO DE DESCONEXÃO DO JOGADOR
+socket.on('jogadorDesconectado', (data) => {
+  textoModalDesconexao.innerText = `O jogador (${data.apelido}) caiu ou saiu da sala.\nVocê pode aguardar ele entrar de novo ou destruir a sala.`;
+  modalDesconexao.style.display = 'flex';
+});
+
+// O jogador que ficou optou por aguardar reconexão
+btnAguardarReconexao.onclick = () => {
+  modalDesconexao.style.display = 'none';
+  document.getElementById('status-vez').innerText = '⏳ Aguardando jogador reconectar...';
+};
+
+// O jogador escolheu Sair e Destruir a sala
+btnConfirmarDesconexao.onclick = () => {
+  socket.emit('destruirSalaForcado');
+  modalDesconexao.style.display = 'none';
+  appContainer.style.display = 'none';
+  loginContainer.style.display = 'block';
+};
+
+socket.on('salaDestruida', (msg) => {
+  alert(msg || 'A sala foi encerrada e excluída.');
+  modalDesconexao.style.display = 'none';
+  appContainer.style.display = 'none';
+  loginContainer.style.display = 'block';
 });
 
 socket.on('atualizarVez', (apelido) => {
