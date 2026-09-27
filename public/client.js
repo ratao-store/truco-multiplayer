@@ -42,7 +42,6 @@ const overlayEmbaralhar = document.getElementById('overlay-embaralhar');
 const modalDesconexao = document.getElementById('modal-desconexao');
 const textoModalDesconexao = document.getElementById('texto-modal-desconexao');
 const btnConfirmarDesconexao = document.getElementById('btn-confirmar-desconexao');
-const btnAguardarReconexao = document.getElementById('btn-aguardar-reconexao');
 
 let meuApelido = '';
 let meuTime = '';
@@ -301,14 +300,9 @@ socket.on('efeitoManilhaZap', (data) => {
 });
 
 socket.on('jogadorDesconectado', (data) => {
-  textoModalDesconexao.innerText = `O jogador (${data.apelido}) caiu da sala.`;
+  textoModalDesconexao.innerText = `O jogador (${data.apelido}) desconectou da partida. A sala será encerrada.`;
   modalDesconexao.style.display = 'flex';
 });
-
-btnAguardarReconexao.onclick = () => {
-  modalDesconexao.style.display = 'none';
-  document.getElementById('status-vez').innerText = '⏳ Aguardando reconexão...';
-};
 
 btnConfirmarDesconexao.onclick = () => {
   socket.emit('destruirSalaForcado');
