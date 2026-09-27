@@ -25,56 +25,102 @@ function criarBaralho() {
 const FORCA_VALORES = { '4': 1, '5': 2, '6': 3, '7': 4, 'Q': 5, 'J': 6, 'K': 7, 'A': 8, '2': 9, '3': 10 };
 const FORCA_NAIPES = { '♦': 1, '♠': 2, '♥': 3, '♣': 4 };
 
-// Gestão de salas
 let salas = {};
 
 io.on('connection', (socket) => {
-  socket.on('entrarOuCriarSala', ({ apelido, nomeSala, maxJogadores }) => {
+
+  // Criar Sala
+  socket.on('criarSala', ({ apelido, nomeSala, maxJogadores }) => {
     nomeSala = nomeSala.trim().toLowerCase();
     
-    if (!salas[nomeSala]) {
-      // Cria a sala se não existir
-      salas[nomeSala] = {
-        nome: nomeSala,
-        maxJogadores: parseInt(maxJogadores) || 4,
-        jogadores: [],
-        gameState: {
-          emAndamento: false,
-          pontosA: 0,
-          pontosB: 0,
-          valorMao: 1,
-          vira: null,
-          manilhaValor: null,
-          rodadasVencidas: { A: 0, B: 0 },
-          historicoRodadas: [],
-          cartasMesa: [],
-          vezIndex: 0,
-          maoIndex: 0
-        }
-      };
+    if (salas[nomeSala]) {
+      socket.emit('erroEntrada', 'Essa sala já existe! Escolha outro nome ou entre nela.');
+      return;
     }
 
-    let sala = salas[nomeSala];
+    salas[nomeSala] = {
+      nome: nomeSala,
+      maxJogadores: parseInt(maxJogadores) || 4,
+      jogadores: [],
+      vistoriasA: 0,
+      vistoriasB: 0,
+      gameState: resetGameState()
+    };
 
-    if (sala.jogadores.length >= sala.maxJogadores) {
+    entrarNaSala(socket, apelido, nomeSala);
+  });
+
+  // Entrar em Sala
+  socket.on('entrarSala', ({ apelido, nomeSala }) => {
+    nomeSala = nomeSala.trim().toLowerCase();
+
+    if (!salas[nomeSala]) {
+      socket.emit('erroEntrada', 'Sala não encontrada! Verifique o nome ou crie uma nova.');
+      return;
+    }
+
+    if (salas[nomeSala].jogadores.length >= salas[nomeSala].maxJogadores) {
       socket.emit('erroEntrada', 'A sala está cheia!');
       return;
     }
 
-    const time = sala.jogadores.length % 2 === 0 ? 'A' : 'B';
-    const jogador = { id: socket.id, apelido, time, cartas: [] };
-    sala.jogadores.push(jogador);
+    entrarNaSala(socket, apelido, nomeSala);
+  });
 
-    socket.join(nomeSala);
-    socket.nomeSala = nomeSala;
+  // Lógica do Truco
+  socket.on('pedirTruco', () => {
+    const nomeSala = socket.nomeSala;
+    if (!nomeSala || !salas[nomeSala]) return;
+    const sala = salas[nomeSala];
+    const gs = sala.gameState;
 
-    socket.emit('sucessoEntrada', { apelido, time, nomeSala });
-    io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
+    if (!gs.emAndamento || gs.trucoPendente) return;
 
-    if (sala.jogadores.length === sala.maxJogadores && !sala.gameState.emAndamento) {
-      iniciarJogo(nomeSala);
+    const jogador = sala.jogadores.find(j => j.id === socket.id);
+    if (!jogador) return;
+
+    // Não pode pedir se o seu próprio time pediu a última aposta
+    if (gs.ultimoTimeApostou === jogador.time) return;
+
+    let proximoValor = 3;
+    if (gs.valorMao === 1) proximoValor = 3;
+    else if (gs.valorMao === 3) proximoValor = 6;
+    else if (gs.valorMao === 6) proximoValor = 9;
+    else if (gs.valorMao === 9) proximoValor = 12;
+
+    if (proximoValor > 12) return;
+
+    gs.trucoPendente = {
+      pediuTime: jogador.time,
+      pediuApelido: jogador.apelido,
+      valorProposto: proximoValor
+    };
+
+    io.to(nomeSala).emit('solicitacaoTruco', gs.trucoPendente);
+  });
+
+  socket.on('respostaTruco', (aceitou) => {
+    const nomeSala = socket.nomeSala;
+    if (!nomeSala || !salas[nomeSala]) return;
+    const sala = salas[nomeSala];
+    const gs = sala.gameState;
+
+    if (!gs.trucoPendente) return;
+
+    const jogador = sala.jogadores.find(j => j.id === socket.id);
+    if (!jogador || jogador.time === gs.trucoPendente.pediuTime) return;
+
+    const { pediuTime, valorProposto } = gs.trucoPendente;
+    gs.trucoPendente = null;
+
+    if (aceitou) {
+      gs.valorMao = valorProposto;
+      gs.ultimoTimeApostou = jogador.time;
+      io.to(nomeSala).emit('trucoAceito', { valorMao: gs.valorMao, timeRespondera: jogador.time });
     } else {
-      io.to(nomeSala).emit('atualizarVez', `Aguardando jogadores (${sala.jogadores.length}/${sala.maxJogadores})...`);
+      // Time correu: dá os pontos acumulados até então para o time que pediu
+      let pontosGanhos = gs.valorMao;
+      finalizarMao(nomeSala, pediuTime, pontosGanhos);
     }
   });
 
@@ -84,7 +130,7 @@ io.on('connection', (socket) => {
     const sala = salas[nomeSala];
     const gs = sala.gameState;
 
-    if (!gs.emAndamento) return;
+    if (!gs.emAndamento || gs.trucoPendente) return;
     const jogadorAtual = sala.jogadores[gs.vezIndex];
     if (!jogadorAtual || jogadorAtual.id !== socket.id) return;
 
@@ -115,16 +161,54 @@ io.on('connection', (socket) => {
         delete salas[nomeSala];
       } else {
         io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
-        io.to(nomeSala).emit('atualizarVez', 'Jogador desconectou. Aguardando...');
+        io.to(nomeSala).emit('atualizarVez', 'Jogador desconectou.');
       }
     }
   });
 });
 
+function entrarNaSala(socket, apelido, nomeSala) {
+  const sala = salas[nomeSala];
+  const time = sala.jogadores.length % 2 === 0 ? 'A' : 'B';
+  const jogador = { id: socket.id, apelido, time, cartas: [] };
+  
+  sala.jogadores.push(jogador);
+  socket.join(nomeSala);
+  socket.nomeSala = nomeSala;
+
+  socket.emit('sucessoEntrada', { apelido, time, nomeSala });
+  io.to(nomeSala).emit('atualizarJogadores', sala.jogadores);
+  io.to(nomeSala).emit('atualizarTrofeus', { a: sala.vistoriasA, b: sala.vistoriasB });
+
+  if (sala.jogadores.length === sala.maxJogadores && !sala.gameState.emAndamento) {
+    iniciarJogo(nomeSala);
+  } else {
+    io.to(nomeSala).emit('atualizarVez', `Aguardando (${sala.jogadores.length}/${sala.maxJogadores})...`);
+  }
+}
+
+function resetGameState() {
+  return {
+    emAndamento: false,
+    pontosA: 0,
+    pontosB: 0,
+    valorMao: 1,
+    ultimoTimeApostou: null,
+    trucoPendente: null,
+    vira: null,
+    manilhaValor: null,
+    rodadasVencidas: { A: 0, B: 0 },
+    historicoRodadas: [],
+    cartasMesa: [],
+    vezIndex: 0,
+    maoIndex: 0
+  };
+}
+
 function iniciarJogo(nomeSala) {
   let sala = salas[nomeSala];
   if (!sala) return;
-  
+
   sala.gameState.pontosA = 0;
   sala.gameState.pontosB = 0;
   sala.gameState.emAndamento = true;
@@ -138,8 +222,10 @@ function iniciarNovaMao(nomeSala) {
 
   const gs = sala.gameState;
   const baralho = criarBaralho();
-  
+
   gs.valorMao = 1;
+  gs.ultimoTimeApostou = null;
+  gs.trucoPendente = null;
   gs.rodadasVencidas = { A: 0, B: 0 };
   gs.historicoRodadas = [];
   gs.cartasMesa = [];
@@ -158,6 +244,7 @@ function iniciarNovaMao(nomeSala) {
     vira: gs.vira,
     pontosA: gs.pontosA,
     pontosB: gs.pontosB,
+    valorMao: gs.valorMao,
     vez: sala.jogadores[gs.vezIndex].apelido
   });
 }
@@ -203,19 +290,37 @@ function processarFimDeRodada(nomeSala) {
   let ganhadorMao = verificarGanhadorMao(gs.historicoRodadas, gs.rodadasVencidas);
 
   if (ganhadorMao) {
-    if (ganhadorMao === 'A') gs.pontosA += gs.valorMao;
-    if (ganhadorMao === 'B') gs.pontosB += gs.valorMao;
-
-    if (gs.pontosA >= 12 || gs.pontosB >= 12) {
-      const timeVencedorNomes = sala.jogadores.filter(j => j.time === (gs.pontosA >= 12 ? 'A' : 'B')).map(j => j.apelido).join(' e ');
-      io.to(nomeSala).emit('fimDeJogo', { vencedor: timeVencedorNomes });
-      gs.emAndamento = false;
-    } else {
-      gs.maoIndex++;
-      iniciarNovaMao(nomeSala);
-    }
+    finalizarMao(nomeSala, ganhadorMao, gs.valorMao);
   } else {
     io.to(nomeSala).emit('atualizarVez', sala.jogadores[gs.vezIndex].apelido);
+  }
+}
+
+function finalizarMao(nomeSala, timeGanhador, pontos) {
+  let sala = salas[nomeSala];
+  let gs = sala.gameState;
+
+  if (timeGanhador === 'A') gs.pontosA += pontos;
+  if (timeGanhador === 'B') gs.pontosB += pontos;
+
+  if (gs.pontosA >= 12 || gs.pontosB >= 12) {
+    let vencedorFinal = gs.pontosA >= 12 ? 'A' : 'B';
+    if (vencedorFinal === 'A') sala.vistoriasA++;
+    else sala.vistoriasB++;
+
+    const nomesVencedores = sala.jogadores.filter(j => j.time === vencedorFinal).map(j => j.apelido).join(' e ');
+
+    io.to(nomeSala).emit('atualizarTrofeus', { a: sala.vistoriasA, b: sala.vistoriasB });
+    io.to(nomeSala).emit('fimDePartida', { vencedor: nomesVencedores });
+
+    // Reinicia a partida do zero na mesma sala mantendo o troféu
+    setTimeout(() => {
+      iniciarJogo(nomeSala);
+    }, 3000);
+
+  } else {
+    gs.maoIndex++;
+    iniciarNovaMao(nomeSala);
   }
 }
 
