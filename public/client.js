@@ -2,6 +2,7 @@ const socket = io();
 
 // Áudio e Síntese de Voz Nativa
 let audioCtx = null;
+
 function initAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -21,209 +22,270 @@ function falarTexto(texto) {
 function playSoundPlayCard() {
   initAudio();
   if (!audioCtx) return;
+
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
+
   osc.type = 'sine';
   osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.1);
+  osc.frequency.exponentialRampToValueAtTime(
+    120,
+    audioCtx.currentTime + 0.1
+  );
+
   gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+  gain.gain.linearRampToValueAtTime(
+    0.01,
+    audioCtx.currentTime + 0.1
+  );
+
   osc.connect(gain);
   gain.connect(audioCtx.destination);
+
   osc.start();
   osc.stop(audioCtx.currentTime + 0.1);
+}
+
+function playSoundZap() {
+  initAudio();
+  if (!audioCtx) return;
+
+  const agora = audioCtx.currentTime;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = 'sawtooth';
+
+  osc.frequency.setValueAtTime(180, agora);
+  osc.frequency.exponentialRampToValueAtTime(
+    900,
+    agora + 0.08
+  );
+  osc.frequency.exponentialRampToValueAtTime(
+    240,
+    agora + 0.25
+  );
+
+  gain.gain.setValueAtTime(0.001, agora);
+  gain.gain.exponentialRampToValueAtTime(
+    0.35,
+    agora + 0.03
+  );
+  gain.gain.exponentialRampToValueAtTime(
+    0.001,
+    agora + 0.28
+  );
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start(agora);
+  osc.stop(agora + 0.3);
+}
+
+function playSoundVictory() {
+  initAudio();
+  if (!audioCtx) return;
+
+  const notas = [523.25, 659.25, 783.99];
+
+  notas.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    const inicio = audioCtx.currentTime + i * 0.13;
+
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    gain.gain.setValueAtTime(0.001, inicio);
+    gain.gain.exponentialRampToValueAtTime(
+      0.25,
+      inicio + 0.03
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      inicio + 0.3
+    );
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(inicio);
+    osc.stop(inicio + 0.32);
+  });
 }
 
 // Elementos DOM
 const cardEntrar = document.getElementById('card-entrar');
 const cardCriar = document.getElementById('card-criar');
+
 const btnAbrirCriar = document.getElementById('btn-abrir-criar');
 const btnVoltarEntrar = document.getElementById('btn-voltar-entrar');
-const btnEntrar = document.getElementById('btn-entrar');
-const btnConfirmarCriar = document.getElementById('btn-confirmar-criar');
+
+const formEntrar = document.getElementById('form-entrar');
+const formCriar = document.getElementById('form-criar');
 
 const loginContainer = document.getElementById('login-container');
-const appContainer = document.getElementById('app');
-const modalRegras = document.getElementById('modal-regras');
-const btnAbrirRegras = document.getElementById('btn-abrir-regras');
-const btnFecharRegras = document.getElementById('btn-fechar-regras');
+const appContainer = document.getElementById('app-container');
 
-const modalQRCode = document.getElementById('modal-qrcode');
-const btnAbrirQRCode = document.getElementById('btn-abrir-qrcode');
-const btnFecharQRCode = document.getElementById('btn-fechar-qrcode');
-const inputLinkConvite = document.getElementById('input-link-convite');
-const btnCopiarLink = document.getElementById('btn-copiar-link');
+const apelidoInput = document.getElementById('apelido');
+const avatarInput = document.getElementById('avatar');
+const nomeSalaInput = document.getElementById('nome-sala');
+const maxJogadoresInput = document.getElementById('max-jogadores');
 
-const selectTemaMesa = document.getElementById('select-tema-mesa');
 const btnAdicionarBot = document.getElementById('btn-adicionar-bot');
 const btnIniciarPartida = document.getElementById('btn-iniciar-partida');
 
 const btnPedirTruco = document.getElementById('btn-pedir-truco');
 const btnCorrerRodada = document.getElementById('btn-correr-rodada');
-const modalTruco = document.getElementById('modal-truco');
-const textoTrucoPedido = document.getElementById('texto-truco-pedido');
-const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
-const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
-const btnCorrerTruco = document.getElementById('btn-correr-truco');
 
-const modalMao11 = document.getElementById('modal-mao11');
+const modalTruco = document.getElementById('modal-truco');
+const modalMao11 = document.getElementById('modal-mao-11');
+
+const btnAceitarTruco = document.getElementById('btn-aceitar-truco');
+const btnCorrerTruco = document.getElementById('btn-correr-truco');
+const btnAumentarTruco = document.getElementById('btn-aumentar-truco');
+
 const btnAceitarMao11 = document.getElementById('btn-aceitar-mao11');
 const btnCorrerMao11 = document.getElementById('btn-correr-mao11');
 
-const containerEsconderCarta = document.getElementById('container-esconder-carta');
-const chkEsconderCarta = document.getElementById('chk-esconder-carta');
+const textoTrucoPedido = document.getElementById('texto-truco-pedido');
 
-const overlayZap = document.getElementById('overlay-zap');
-const textoEfeitoZap = document.getElementById('texto-efeito-zap');
-const cartaZapGrande = document.getElementById('carta-zap-grande');
-const overlayEmbaralhar = document.getElementById('overlay-embaralhar');
 const overlayContagem = document.getElementById('overlay-contagem');
 const numeroContagem = document.getElementById('numero-contagem');
 
-const modalDesconexao = document.getElementById('modal-desconexao');
-const textoModalDesconexao = document.getElementById('texto-modal-desconexao');
-const btnConfirmarDesconexao = document.getElementById('btn-confirmar-desconexao');
+const overlayEmbaralhar = document.getElementById('overlay-embaralhar');
 
-const timerContainer = document.getElementById('timer-turn');
-const timerSpan = document.getElementById('tempo-restante');
+const containerCartas = document.getElementById('minhas-cartas');
+const containerMesa = document.getElementById('cartas-mesa');
 
-// Chat DOM
-const btnToggleChat = document.getElementById('btn-toggle-chat');
-const boxChatSlide = document.getElementById('box-chat-slide');
-const btnFecharChat = document.getElementById('btn-fechar-chat');
-const btnEnviarChat = document.getElementById('btn-enviar-chat');
-const inputMsgChat = document.getElementById('input-msg-chat');
-const mensagensChat = document.getElementById('mensagens-chat');
-const badgeChatUnread = document.getElementById('badge-chat-unread');
+const containerEsconderCarta =
+  document.getElementById('container-esconder-carta');
+
+const chkEsconderCarta =
+  document.getElementById('chk-esconder-carta');
+
+const statusVez = document.getElementById('status-vez');
 
 let meuApelido = '';
-let meuAvatar = '🥸';
+let meuAvatar = '';
 let meuTime = '';
+
 let nomeSalaAtual = '';
+let souDonoSala = false;
+
+let jogadores = [];
+let jogoIniciado = false;
+
+let minhasCartas = [];
+let cartaSelecionada = null;
+
 let valorMaoAtual = 1;
 let numRodadaAtual = 1;
-let eMinhaVez = false;
-let bloqueioJogada = false;
-let intervalTimer = null;
-let chatAberto = false;
-let souDonoSala = false;
+
 let aguardandoDecisaoMao11 = false;
 
-// Gestão de Chat Retrátil
-btnToggleChat.onclick = () => {
-  chatAberto = !chatAberto;
-  if (chatAberto) {
-    boxChatSlide.classList.add('aberto');
-    badgeChatUnread.style.display = 'none';
-  } else {
-    boxChatSlide.classList.remove('aberto');
-  }
-};
+let intervaloTimerTurno = null;
+let segundosTimerTurno = 0;
 
-btnFecharChat.onclick = () => {
-  chatAberto = false;
-  boxChatSlide.classList.remove('aberto');
-};
+// ================================
+// NAVEGAÇÃO LOGIN
+// ================================
 
-btnEnviarChat.onclick = () => {
-  const texto = inputMsgChat.value.trim();
-  if (texto) {
-    socket.emit('enviarChat', texto);
-    inputMsgChat.value = '';
-  }
-};
+if (btnAbrirCriar) {
+  btnAbrirCriar.onclick = () => {
+    cardEntrar.style.display = 'none';
+    cardCriar.style.display = 'block';
+  };
+}
 
-socket.on('receberChat', (data) => {
-  const p = document.createElement('p');
-  p.innerHTML = `<strong style="color:var(--gold-primary);">${data.apelido}:</strong> ${data.texto}`;
-  mensagensChat.appendChild(p);
-  mensagensChat.scrollTop = mensagensChat.scrollHeight;
+if (btnVoltarEntrar) {
+  btnVoltarEntrar.onclick = () => {
+    cardCriar.style.display = 'none';
+    cardEntrar.style.display = 'block';
+  };
+}
 
-  if (!chatAberto) {
-    badgeChatUnread.style.display = 'flex';
-  }
+// ================================
+// CRIAR SALA
+// ================================
+
+if (formCriar) {
+  formCriar.onsubmit = (e) => {
+    e.preventDefault();
+
+    initAudio();
+
+    const apelido = apelidoInput.value.trim();
+    const avatar = avatarInput.value || '😀';
+    const nomeSala = nomeSalaInput.value.trim();
+    const maxJogadores =
+      parseInt(maxJogadoresInput.value, 10) || 4;
+
+    if (!apelido || !nomeSala) {
+      alert('Preencha seu apelido e o nome da sala.');
+      return;
+    }
+
+    meuAvatar = avatar;
+
+    socket.emit('criarSala', {
+      apelido,
+      avatar,
+      nomeSala,
+      maxJogadores
+    });
+  };
+}
+
+// ================================
+// ENTRAR EM SALA
+// ================================
+
+if (formEntrar) {
+  formEntrar.onsubmit = (e) => {
+    e.preventDefault();
+
+    initAudio();
+
+    const apelido = document
+      .getElementById('apelido-entrar')
+      ?.value
+      .trim();
+
+    const avatar =
+      document.getElementById('avatar-entrar')?.value ||
+      '😀';
+
+    const nomeSala =
+      document.getElementById('nome-sala-entrar')
+        ?.value
+        .trim();
+
+    if (!apelido || !nomeSala) {
+      alert('Preencha seu apelido e o nome da sala.');
+      return;
+    }
+
+    meuAvatar = avatar;
+
+    socket.emit('entrarSala', {
+      apelido,
+      avatar,
+      nomeSala
+    });
+  };
+}
+
+// ================================
+// ERROS / SUCESSO
+// ================================
+
+socket.on('erroEntrada', (msg) => {
+  alert(msg);
 });
-
-// Troca de Tema
-selectTemaMesa.onchange = (e) => {
-  document.body.className = e.target.value;
-};
-
-btnAbrirRegras.onclick = () => modalRegras.style.display = 'flex';
-btnFecharRegras.onclick = () => modalRegras.style.display = 'none';
-
-btnAbrirQRCode.onclick = () => {
-  const link = `${window.location.origin}/?sala=${encodeURIComponent(nomeSalaAtual)}`;
-  inputLinkConvite.value = link;
-  document.getElementById('qrcode-container').innerHTML = '';
-  new QRCode(document.getElementById('qrcode-container'), {
-    text: link,
-    width: 128,
-    height: 128
-  });
-  modalQRCode.style.display = 'flex';
-};
-
-btnFecharQRCode.onclick = () => modalQRCode.style.display = 'none';
-
-btnCopiarLink.onclick = () => {
-  navigator.clipboard.writeText(inputLinkConvite.value);
-  alert('Link copiado!');
-};
-
-btnAbrirCriar.onclick = () => {
-  cardEntrar.style.display = 'none';
-  cardCriar.style.display = 'block';
-};
-
-btnVoltarEntrar.onclick = () => {
-  cardCriar.style.display = 'none';
-  cardEntrar.style.display = 'block';
-};
-
-btnEntrar.onclick = () => {
-  initAudio();
-
-  const apelido = document.getElementById('input-apelido').value.trim();
-  const nomeSala = document.getElementById('input-sala').value.trim();
-  const avatar = document.getElementById('select-avatar-login').value;
-
-  if (!apelido || !nomeSala) {
-    return alert('Preencha apelido e sala!');
-  }
-
-  meuAvatar = avatar;
-
-  socket.emit('entrarSala', {
-    apelido,
-    avatar,
-    nomeSala
-  });
-};
-
-btnConfirmarCriar.onclick = () => {
-  initAudio();
-
-  const apelido = document.getElementById('input-criar-apelido').value.trim();
-  const nomeSala = document.getElementById('input-criar-sala').value.trim();
-  const avatar = document.getElementById('select-avatar-criar').value;
-  const maxJogadores = document.getElementById('select-max-jogadores').value;
-
-  if (!apelido || !nomeSala) {
-    return alert('Preencha apelido e nome da sala!');
-  }
-
-  meuAvatar = avatar;
-
-  socket.emit('criarSala', {
-    apelido,
-    avatar,
-    nomeSala,
-    maxJogadores
-  });
-};
-
-socket.on('erroEntrada', (msg) => alert(msg));
 
 socket.on('sucessoEntrada', (data) => {
   meuApelido = data.apelido;
@@ -231,24 +293,50 @@ socket.on('sucessoEntrada', (data) => {
   nomeSalaAtual = data.nomeSala;
   souDonoSala = data.isDono;
 
-  modalDesconexao.style.display = 'none';
+  modalTruco.style.display = 'none';
+  modalMao11.style.display = 'none';
+
   loginContainer.style.display = 'none';
   appContainer.style.display = 'flex';
-  btnToggleChat.style.display = 'flex';
 
-  if (souDonoSala) {
-    btnAbrirQRCode.style.display = 'inline-block';
-  } else {
-    btnAbrirQRCode.style.display = 'none';
+  const btnToggleChat =
+    document.getElementById('btn-toggle-chat');
+
+  if (btnToggleChat) {
+    btnToggleChat.style.display = 'flex';
   }
 
-  document.getElementById('label-nome-sala').innerText = data.nomeSala;
-  document.getElementById('meu-info').innerText =
-    `${meuAvatar} ${meuApelido} (Time ${meuTime})`;
+  const btnAbrirQRCode =
+    document.getElementById('btn-abrir-qrcode');
+
+  if (btnAbrirQRCode) {
+    btnAbrirQRCode.style.display =
+      souDonoSala ? 'inline-block' : 'none';
+  }
+
+  const labelNomeSala =
+    document.getElementById('label-nome-sala');
+
+  if (labelNomeSala) {
+    labelNomeSala.innerText = data.nomeSala;
+  }
+
+  const meuInfo =
+    document.getElementById('meu-info');
+
+  if (meuInfo) {
+    meuInfo.innerText =
+      `${meuAvatar} ${meuApelido} (Time ${meuTime})`;
+  }
 });
 
+// ================================
+// JOGADORES
+// ================================
+
 socket.on('atualizarJogadores', (data) => {
-  const { jogadores, jogoIniciado } = data;
+  jogadores = data.jogadores || [];
+  jogoIniciado = data.jogoIniciado;
 
   const timeA = jogadores
     .filter(j => j.time === 'A')
@@ -260,19 +348,31 @@ socket.on('atualizarJogadores', (data) => {
     .map(j => `${j.avatar || ''} ${j.apelido}`)
     .join(' & ');
 
-  document.getElementById('nome-time-a').innerText =
-    timeA || 'Aguardando...';
+  const nomeTimeA =
+    document.getElementById('nome-time-a');
 
-  document.getElementById('nome-time-b').innerText =
-    timeB || 'Aguardando...';
+  const nomeTimeB =
+    document.getElementById('nome-time-b');
+
+  if (nomeTimeA) {
+    nomeTimeA.innerText = timeA || 'Aguardando...';
+  }
+
+  if (nomeTimeB) {
+    nomeTimeB.innerText = timeB || 'Aguardando...';
+  }
 
   if (!jogoIniciado) {
     if (souDonoSala) {
       btnAdicionarBot.style.display =
-        jogadores.length < 4 ? 'inline-block' : 'none';
+        jogadores.length < 4
+          ? 'inline-block'
+          : 'none';
 
       btnIniciarPartida.style.display =
-        jogadores.length >= 2 ? 'inline-block' : 'none';
+        jogadores.length >= 2
+          ? 'inline-block'
+          : 'none';
     } else {
       btnAdicionarBot.style.display = 'none';
       btnIniciarPartida.style.display = 'none';
@@ -283,18 +383,27 @@ socket.on('atualizarJogadores', (data) => {
   }
 });
 
-btnAdicionarBot.onclick = () => socket.emit('adicionarBot');
+btnAdicionarBot.onclick = () => {
+  socket.emit('adicionarBot');
+};
 
-btnIniciarPartida.onclick = () =>
+btnIniciarPartida.onclick = () => {
+  initAudio();
   socket.emit('solicitarInicioPartida');
+};
+
+// ================================
+// CONTAGEM INICIAL
+// ================================
 
 socket.on('iniciarContagemRegressiva', () => {
   overlayContagem.style.display = 'flex';
 
   let c = 5;
+
   numeroContagem.innerText = c;
 
-  let t = setInterval(() => {
+  const t = setInterval(() => {
     c--;
 
     if (c > 0) {
@@ -306,28 +415,54 @@ socket.on('iniciarContagemRegressiva', () => {
   }, 1000);
 });
 
+// ================================
+// TROFÉUS
+// ================================
+
 socket.on('atualizarTrofeus', (data) => {
-  document.getElementById('trofeus-a').innerText = `🏆 ${data.a}`;
-  document.getElementById('trofeus-b').innerText = `🏆 ${data.b}`;
+  const trofeusA =
+    document.getElementById('trofeus-a');
+
+  const trofeusB =
+    document.getElementById('trofeus-b');
+
+  if (trofeusA) {
+    trofeusA.innerText = `🏆 ${data.a}`;
+  }
+
+  if (trofeusB) {
+    trofeusB.innerText = `🏆 ${data.b}`;
+  }
 });
 
-btnPedirTruco.onclick = () => socket.emit('pedirTruco');
+// ================================
+// BOTÕES DE JOGO
+// ================================
+
+btnPedirTruco.onclick = () => {
+  initAudio();
+  socket.emit('pedirTruco');
+};
 
 btnCorrerRodada.onclick = () => {
-  if (confirm('Deseja realmente correr desta mão?')) {
+  if (
+    aguardandoDecisaoMao11
+  ) {
+    return;
+  }
+
+  if (
+    confirm(
+      'Deseja realmente correr desta mão?'
+    )
+  ) {
     socket.emit('correrVoluntario');
   }
 };
 
-// VOZ: jogador correu
-socket.on('jogadorCorreu', (data) => {
-  falarTexto(`${data.apelido} correu!`);
-});
-
-// VOZ: jogador aceitou o truco
-socket.on('jogadorAceitouTruco', (data) => {
-  falarTexto(`${data.apelido} aceitou ${data.valor}!`);
-});
+// ================================
+// PEDIDO DE TRUCO
+// ================================
 
 socket.on('solicitacaoTruco', (data) => {
   let textoVoz = 'pediu truco!';
@@ -340,16 +475,26 @@ socket.on('solicitacaoTruco', (data) => {
     textoVoz = 'pediu doze!';
   }
 
-  falarTexto(`${data.pediuApelido} ${textoVoz}`);
+  falarTexto(
+    `${data.pediuApelido} ${textoVoz}`
+  );
 
   if (data.pediuTime !== meuTime) {
     modalTruco.style.display = 'block';
 
     let rotulo = 'TRUCO!';
 
-    if (data.valorProposto === 6) rotulo = 'SEIS!';
-    if (data.valorProposto === 9) rotulo = 'NOVE!';
-    if (data.valorProposto === 12) rotulo = '12!';
+    if (data.valorProposto === 6) {
+      rotulo = 'SEIS!';
+    }
+
+    if (data.valorProposto === 9) {
+      rotulo = 'NOVE!';
+    }
+
+    if (data.valorProposto === 12) {
+      rotulo = '12!';
+    }
 
     textoTrucoPedido.innerText =
       `${data.pediuApelido} pediu ${rotulo}`;
@@ -360,23 +505,28 @@ socket.on('solicitacaoTruco', (data) => {
     if (data.valorProposto >= 12) {
       btnAumentarTruco.style.display = 'none';
     } else {
-      btnAumentarTruco.style.display = 'inline-block';
+      btnAumentarTruco.style.display =
+        'inline-block';
 
       let prox = 'Pedir 6';
 
-      if (data.valorProposto === 6) prox = 'Pedir 9';
-      if (data.valorProposto === 9) prox = 'Pedir 12';
+      if (data.valorProposto === 6) {
+        prox = 'Pedir 9';
+      }
+
+      if (data.valorProposto === 9) {
+        prox = 'Pedir 12';
+      }
 
       btnAumentarTruco.innerText = prox;
     }
-  } else {
-    document.getElementById('status-vez').innerText =
-      'Aguardando resposta do adversário...';
   }
 });
 
 btnAceitarTruco.onclick = () => {
   modalTruco.style.display = 'none';
+
+  initAudio();
 
   socket.emit('respostaTruco', {
     aceitou: true,
@@ -402,108 +552,187 @@ btnAumentarTruco.onclick = () => {
   });
 };
 
-socket.on('atualizarEstadoTruco', (data) => {
-  valorMaoAtual = data.valorMao;
+// ================================
+// VOZ - ACEITOU TRUCO
+// ================================
 
-  if (data.isMaoDe11) {
-    aguardandoDecisaoMao11 = false;
-    modalMao11.style.display = 'none';
-    btnCorrerRodada.style.display = 'inline-block';
-  }
-
-  document.getElementById('label-valor-mao').innerText =
-    valorMaoAtual;
-
-  const podeAumentar =
-    (data.ultimoPediuTime !== meuTime) &&
-    !data.bloqueado &&
-    valorMaoAtual < 12;
-
-  if (
-    podeAumentar &&
-    !data.isMaoDe11 &&
-    !data.maoDeFerro
-  ) {
-    btnPedirTruco.style.display = 'inline-block';
-
-    if (valorMaoAtual === 1) {
-      btnPedirTruco.innerText = 'TRUCO!';
-    } else if (valorMaoAtual === 3) {
-      btnPedirTruco.innerText = 'SEIS!';
-    } else if (valorMaoAtual === 6) {
-      btnPedirTruco.innerText = 'NOVE!';
-    } else if (valorMaoAtual === 9) {
-      btnPedirTruco.innerText = '12!';
-    }
-  } else {
-    btnPedirTruco.style.display = 'none';
-  }
+socket.on('jogadorAceitouTruco', (data) => {
+  falarTexto(
+    `${data.apelido} aceitou ${data.valor}!`
+  );
 });
 
+// ================================
+// VOZ - CORREU
+// ================================
+
+socket.on('jogadorCorreu', (data) => {
+  falarTexto(
+    `${data.apelido} correu!`
+  );
+
+  mostrarAnimacaoCorre(data.apelido);
+});
+
+// ================================
+// ANIMAÇÃO DE CORREU
+// ================================
+
+function mostrarAnimacaoCorre(apelido) {
+  let overlay =
+    document.getElementById('overlay-correu');
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+
+    overlay.id = 'overlay-correu';
+    overlay.className = 'overlay-evento';
+
+    overlay.innerHTML = `
+      <div class="evento-grande correu-evento">
+        <div class="evento-emoji">🏃💨</div>
+        <div class="evento-titulo">CORREU!</div>
+        <div class="evento-apelido"></div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+  }
+
+  const apelidoEl =
+    overlay.querySelector('.evento-apelido');
+
+  if (apelidoEl) {
+    apelidoEl.innerText = apelido;
+  }
+
+  overlay.style.display = 'flex';
+
+  setTimeout(() => {
+    overlay.style.display = 'none';
+  }, 1800);
+}
+
+// ================================
+// ZAP
+// ================================
+
+socket.on('efeitoZap', (data) => {
+  playSoundZap();
+
+  const overlay =
+    document.getElementById('overlay-zap') ||
+    criarOverlayZap();
+
+  const texto =
+    overlay.querySelector('.zap-texto');
+
+  if (texto) {
+    texto.innerText =
+      `${data.apelido || 'ZAP'}!`;
+  }
+
+  overlay.style.display = 'flex';
+
+  document.body.classList.add('efeito-tremor');
+
+  setTimeout(() => {
+    document.body.classList.remove(
+      'efeito-tremor'
+    );
+  }, 500);
+
+  setTimeout(() => {
+    overlay.style.display = 'none';
+  }, 1300);
+});
+
+function criarOverlayZap() {
+  const overlay = document.createElement('div');
+
+  overlay.id = 'overlay-zap';
+  overlay.className = 'overlay-evento';
+
+  overlay.innerHTML = `
+    <div class="zap-evento">
+      <div class="zap-raio">⚡</div>
+      <div class="zap-texto">ZAP!</div>
+      <div class="zap-raio">⚡</div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  return overlay;
+}
+
+// ================================
+// MÃO DE 11
+// ================================
+
 btnAceitarMao11.onclick = () => {
-  aguardandoDecisaoMao11 = false;
   modalMao11.style.display = 'none';
+
+  aguardandoDecisaoMao11 = false;
+
+  btnCorrerRodada.style.display =
+    'inline-block';
+
   socket.emit('respostaMao11', true);
 };
 
 btnCorrerMao11.onclick = () => {
-  aguardandoDecisaoMao11 = false;
   modalMao11.style.display = 'none';
+
+  aguardandoDecisaoMao11 = false;
+
   socket.emit('respostaMao11', false);
 };
 
 socket.on('decisaoMao11Pendente', (data) => {
   aguardandoDecisaoMao11 = true;
-  btnCorrerRodada.style.display = 'none';
+
+  modalTruco.style.display = 'none';
 
   if (data.timeNaMao11 === meuTime) {
     modalMao11.style.display = 'block';
+
+    btnCorrerRodada.style.display = 'none';
+
+    if (statusVez) {
+      statusVez.innerText =
+        '⚠️ SUA VEZ: MÃO DE 11 - ACEITA OU CORRE?';
+    }
   } else {
     modalMao11.style.display = 'none';
 
-    document.getElementById('status-vez').innerText =
-      `Time ${data.timeNaMao11} decidindo Mão de 11...`;
+    btnCorrerRodada.style.display = 'none';
+
+    if (statusVez) {
+      statusVez.innerText =
+        `Time ${data.timeNaMao11} decidindo Mão de 11...`;
+    }
   }
 });
 
-function atualizarBolinhas(historicoRodadas) {
-  const bolinhasA =
-    document.querySelectorAll('#bolinhas-a .bolinha');
-
-  const bolinhasB =
-    document.querySelectorAll('#bolinhas-b .bolinha');
-
-  bolinhasA.forEach(b => b.className = 'bolinha');
-  bolinhasB.forEach(b => b.className = 'bolinha');
-
-  historicoRodadas.forEach((res, idx) => {
-    if (idx >= 3) return;
-
-    if (res === 'A') {
-      bolinhasA[idx].classList.add('vitoria');
-      bolinhasB[idx].classList.add('derrota');
-    } else if (res === 'B') {
-      bolinhasB[idx].classList.add('vitoria');
-      bolinhasA[idx].classList.add('derrota');
-    } else if (res === 'Empate') {
-      bolinhasA[idx].classList.add('empate');
-      bolinhasB[idx].classList.add('empate');
-    }
-  });
-}
+// ================================
+// NOVA MÃO
+// ================================
 
 socket.on('novaMao', (data) => {
   overlayEmbaralhar.style.display = 'flex';
 
-  aguardandoDecisaoMao11 = false;
-  modalMao11.style.display = 'none';
+  containerMesa.innerHTML = '';
 
-  // Limpa imediatamente as cartas antigas da mesa.
-  const mesaEl = document.getElementById('cartas-mesa');
+  const minhaMesa =
+    document.getElementById('cartas-mesa');
 
-  if (mesaEl) {
-    mesaEl.innerHTML = '';
+  if (minhaMesa) {
+    minhaMesa.innerHTML = '';
   }
+
+  minhasCartas = [];
+  cartaSelecionada = null;
 
   setTimeout(() => {
     overlayEmbaralhar.style.display = 'none';
@@ -512,45 +741,63 @@ socket.on('novaMao', (data) => {
     numRodadaAtual = 1;
 
     chkEsconderCarta.checked = false;
-    containerEsconderCarta.style.display = 'none';
 
-    document.getElementById('label-valor-mao').innerText =
-      valorMaoAtual;
+    containerEsconderCarta.style.display =
+      'none';
 
-    document.getElementById('pontos-a').innerText =
-      data.pontosA;
+    document.getElementById(
+      'label-valor-mao'
+    ).innerText = valorMaoAtual;
 
-    document.getElementById('pontos-b').innerText =
-      data.pontosB;
+    document.getElementById(
+      'pontos-a'
+    ).innerText = data.pontosA;
 
-    document.getElementById('status-vez').innerText =
+    document.getElementById(
+      'pontos-b'
+    ).innerText = data.pontosB;
+
+    statusVez.innerText =
       `Vez de: ${data.vez}`;
 
-    document.getElementById('label-manilha').innerText =
+    document.getElementById(
+      'label-manilha'
+    ).innerText =
       `Manilha: ${data.valorManilha || '-'}`;
 
     modalTruco.style.display = 'none';
 
-    if (!aguardandoDecisaoMao11) {
+    if (!data.isMaoDe11) {
       modalMao11.style.display = 'none';
+      aguardandoDecisaoMao11 = false;
     }
 
-    btnCorrerRodada.style.display = 'inline-block';
+    btnCorrerRodada.style.display =
+      data.isMaoDe11
+        ? 'none'
+        : 'inline-block';
 
-    if (data.isMaoDe11 || data.maoDeFerro) {
+    if (
+      data.isMaoDe11 ||
+      data.maoDeFerro
+    ) {
       btnPedirTruco.style.display = 'none';
     } else {
-      btnPedirTruco.style.display = 'inline-block';
+      btnPedirTruco.style.display =
+        'inline-block';
+
       btnPedirTruco.innerText = 'TRUCO!';
     }
 
     atualizarBolinhas([]);
 
-    const viraEl = document.getElementById('carta-vira');
+    const viraEl =
+      document.getElementById('carta-vira');
 
     if (data.maoDeFerro) {
       viraEl.innerText = '🂠';
-      viraEl.className = 'carta vira escuro';
+      viraEl.className =
+        'carta vira escuro';
     } else {
       viraEl.innerText =
         `${data.vira.valor}${data.vira.naipe}`;
@@ -564,250 +811,773 @@ socket.on('novaMao', (data) => {
             : ''
         );
     }
+
+    iniciarTimerTurnoVisual(data.tempoTurno || 20);
   }, 1200);
 });
 
-socket.on('atualizarRodadasMao', (historicoRodadas) => {
-  atualizarBolinhas(historicoRodadas);
+// ================================
+// CARTAS DO JOGADOR
+// ================================
 
-  numRodadaAtual = historicoRodadas.length + 1;
+socket.on('minhasCartas', (cartas) => {
+  minhasCartas = cartas || [];
 
-  containerEsconderCarta.style.display =
-    numRodadaAtual >= 2 ? 'inline-block' : 'none';
+  renderizarMinhasCartas();
 });
 
-socket.on('minhasCartas', (data) => {
-  const container =
-    document.getElementById('minhas-cartas');
+function renderizarMinhasCartas() {
+  containerCartas.innerHTML = '';
 
-  container.innerHTML = '';
+  minhasCartas.forEach((carta, indice) => {
+    const cartaEl =
+      document.createElement('div');
 
-  data.cartas.forEach((c, idx) => {
-    const cardEl = document.createElement('div');
+    cartaEl.className =
+      'carta-mao';
 
-    if (data.noEscuro) {
-      cardEl.className = 'carta escuro';
-      cardEl.innerText = '🂠';
-    } else {
-      cardEl.className =
-        'carta' +
-        (
-          c.naipe === '♦' ||
-          c.naipe === '♥'
-            ? ' vermelho'
-            : ''
-        );
+    cartaEl.dataset.indice = indice;
 
-      cardEl.innerText = `${c.valor}${c.naipe}`;
-    }
+    const vermelha =
+      carta.naipe === '♦' ||
+      carta.naipe === '♥';
 
-    cardEl.onclick = () => {
-      if (!eMinhaVez || bloqueioJogada) return;
+    cartaEl.innerHTML = `
+      <div class="valor-carta ${vermelha ? 'vermelho' : ''}">
+        ${carta.valor}
+      </div>
+      <div class="naipe-carta ${vermelha ? 'vermelho' : ''}">
+        ${carta.naipe}
+      </div>
+    `;
 
-      bloqueioJogada = true;
-      playSoundPlayCard();
-
-      const esconder =
-        chkEsconderCarta.checked &&
-        numRodadaAtual >= 2;
-
-      socket.emit('jogarCarta', {
-        indiceCarta: idx,
-        esconder
-      });
-
-      chkEsconderCarta.checked = false;
+    cartaEl.onclick = () => {
+      selecionarCarta(indice);
     };
 
-    container.appendChild(cardEl);
+    cartaEl.onmouseenter = () => {
+      cartaEl.classList.add('carta-hover');
+    };
+
+    cartaEl.onmouseleave = () => {
+      cartaEl.classList.remove('carta-hover');
+    };
+
+    containerCartas.appendChild(cartaEl);
+  });
+}
+
+// ================================
+// CARTA SELECIONADA
+// ================================
+
+function selecionarCarta(indice) {
+  document
+    .querySelectorAll('.carta-mao')
+    .forEach(el => {
+      el.classList.remove(
+        'carta-selecionada'
+      );
+    });
+
+  cartaSelecionada = indice;
+
+  const cartaEl =
+    document.querySelector(
+      `.carta-mao[data-indice="${indice}"]`
+    );
+
+  if (cartaEl) {
+    cartaEl.classList.add(
+      'carta-selecionada'
+    );
+  }
+}
+
+// ================================
+// CLIQUE DUPLO PARA JOGAR
+// ================================
+
+containerCartas.addEventListener(
+  'dblclick',
+  (e) => {
+    const cartaEl =
+      e.target.closest('.carta-mao');
+
+    if (!cartaEl) return;
+
+    const indice =
+      parseInt(
+        cartaEl.dataset.indice,
+        10
+      );
+
+    jogarCarta(indice);
+  }
+);
+
+function jogarCarta(indice) {
+  if (
+    indice === null ||
+    indice === undefined ||
+    !minhasCartas[indice]
+  ) {
+    return;
+  }
+
+  initAudio();
+
+  const esconder =
+    chkEsconderCarta &&
+    chkEsconderCarta.checked;
+
+  playSoundPlayCard();
+
+  socket.emit('jogarCarta', {
+    indiceCarta: indice,
+    esconder
+  });
+
+  cartaSelecionada = null;
+}
+
+// ================================
+// MESA
+// ================================
+
+socket.on('atualizarMesa', (cartas) => {
+  atualizarMesa(cartas || []);
+});
+
+function atualizarMesa(cartas) {
+  containerMesa.innerHTML = '';
+
+  cartas.forEach(carta => {
+    const cartaEl =
+      document.createElement('div');
+
+    cartaEl.className = 'carta mesa-carta';
+
+    if (carta.escondida) {
+      cartaEl.innerText = '🂠';
+      cartaEl.classList.add('escuro');
+    } else {
+      const vermelha =
+        carta.naipe === '♦' ||
+        carta.naipe === '♥';
+
+      cartaEl.innerHTML = `
+        <div class="valor-carta ${vermelha ? 'vermelho' : ''}">
+          ${carta.valor}
+        </div>
+        <div class="naipe-carta ${vermelha ? 'vermelho' : ''}">
+          ${carta.naipe}
+        </div>
+      `;
+    }
+
+    containerMesa.appendChild(cartaEl);
   });
 });
 
-socket.on('atualizarMesa', (cartasMesa) => {
+// ================================
+// RODADAS
+// ================================
+
+socket.on('atualizarRodadasMao', (rodadas) => {
+  atualizarBolinhas(rodadas || []);
+});
+
+function atualizarBolinhas(rodadas) {
   const container =
-    document.getElementById('cartas-mesa');
+    document.getElementById('bolinhas-rodadas');
+
+  if (!container) return;
 
   container.innerHTML = '';
 
-  cartasMesa.forEach((item) => {
-    const cardEl = document.createElement('div');
+  for (let i = 0; i < 3; i++) {
+    const bolinha =
+      document.createElement('div');
 
-    if (item.escondida) {
-      cardEl.className = 'carta escuro';
-      cardEl.innerText = '🂠';
-    } else {
-      cardEl.className =
-        'carta' +
-        (
-          item.carta.naipe === '♦' ||
-          item.carta.naipe === '♥'
-            ? ' vermelho'
-            : ''
-        );
+    bolinha.className =
+      'bolinha-rodada';
 
-      cardEl.innerText =
-        `${item.carta.valor}${item.carta.naipe}`;
+    if (rodadas[i]) {
+      bolinha.classList.add(
+        rodadas[i] === meuTime
+          ? 'minha-equipe'
+          : 'outra-equipe'
+      );
+
+      bolinha.innerText =
+        rodadas[i] === meuTime
+          ? '✓'
+          : 'X';
     }
 
-    container.appendChild(cardEl);
-  });
-});
-
-socket.on('efeitoManilhaZap', (data) => {
-  textoEfeitoZap.innerText =
-    data.isZap ? '💥 ZAP! 💥' : 'MANILHA!';
-
-  cartaZapGrande.innerText =
-    `${data.carta.valor}${data.carta.naipe}`;
-
-  if (
-    data.carta.naipe === '♦' ||
-    data.carta.naipe === '♥'
-  ) {
-    cartaZapGrande.classList.add('vermelho');
-  } else {
-    cartaZapGrande.classList.remove('vermelho');
+    container.appendChild(bolinha);
   }
-
-  overlayZap.style.display = 'flex';
-
-  setTimeout(() => {
-    overlayZap.style.display = 'none';
-  }, 1400);
 });
 
-// Reconexão e Notificação
-socket.on('jogadorDesconectadoTemp', (data) => {
-  textoModalDesconexao.innerText =
-    `${data.apelido} desconectou-se. Aguardando reconexão (30s)...`;
+// ================================
+// VEZ DO JOGADOR
+// ================================
 
-  modalDesconexao.style.display = 'flex';
+socket.on('vezDe', (data) => {
+  const minhaVez =
+    data.jogadorId === socket.id;
+
+  statusVez.innerText =
+    minhaVez
+      ? '🟢 SUA VEZ!'
+      : `Vez de: ${data.apelido}`;
+
+  document.body.classList.toggle(
+    'minha-vez',
+    minhaVez
+  );
+
+  iniciarTimerTurnoVisual(
+    data.tempo || 20
+  );
 });
 
-socket.on('jogadorReconectou', () =>
-  modalDesconexao.style.display = 'none'
-);
+// ================================
+// TIMER VISUAL
+// ================================
 
-socket.on('jogadorDesconectado', (data) => {
-  if (intervalTimer) clearInterval(intervalTimer);
+function iniciarTimerTurnoVisual(segundos) {
+  clearInterval(intervaloTimerTurno);
 
-  timerContainer.style.display = 'none';
+  segundosTimerTurno = segundos;
 
-  textoModalDesconexao.innerText =
-    `O jogador (${data.apelido}) desconectou-se.`;
+  atualizarTextoTimer();
 
-  modalDesconexao.style.display = 'flex';
-});
+  intervaloTimerTurno =
+    setInterval(() => {
+      segundosTimerTurno--;
 
-btnConfirmarDesconexao.onclick = () =>
-  location.reload();
+      if (segundosTimerTurno <= 0) {
+        segundosTimerTurno = 0;
+        clearInterval(intervaloTimerTurno);
+      }
 
-function iniciarTimerTurno(segundos = 20) {
-  if (intervalTimer) {
-    clearInterval(intervalTimer);
-  }
-
-  let restante = segundos;
-
-  timerSpan.innerText = restante;
-  timerContainer.style.display = 'block';
-
-  intervalTimer = setInterval(() => {
-    restante--;
-
-    timerSpan.innerText = restante;
-
-    if (restante <= 0) {
-      clearInterval(intervalTimer);
-    }
-  }, 1000);
+      atualizarTextoTimer();
+    }, 1000);
 }
 
-socket.on('atualizarVez', (apelido) => {
-  bloqueioJogada = false;
+function atualizarTextoTimer() {
+  let timer =
+    document.getElementById(
+      'timer-turno'
+    );
 
-  const statusEl =
-    document.getElementById('status-vez');
+  if (!timer) {
+    timer = document.createElement('div');
 
-  if (apelido.includes('Aguardando')) {
-    statusEl.innerText = apelido;
-    eMinhaVez = false;
+    timer.id = 'timer-turno';
+    timer.className = 'timer-turno';
 
-    timerContainer.style.display = 'none';
+    document.body.appendChild(timer);
+  }
 
-    if (intervalTimer) {
-      clearInterval(intervalTimer);
-    }
+  timer.innerText =
+    `⏱️ ${segundosTimerTurno}`;
+
+  timer.classList.remove(
+    'timer-normal',
+    'timer-atencao',
+    'timer-perigo'
+  );
+
+  if (segundosTimerTurno <= 5) {
+    timer.classList.add(
+      'timer-perigo'
+    );
+  } else if (segundosTimerTurno <= 10) {
+    timer.classList.add(
+      'timer-atencao'
+    );
   } else {
-    statusEl.innerText = `Vez de: ${apelido}`;
+    timer.classList.add(
+      'timer-normal'
+    );
+  }
+}
 
-    eMinhaVez =
-      apelido === meuApelido;
+// ================================
+// ESTADO DO TRUCO
+// ================================
 
-    if (eMinhaVez) {
-      iniciarTimerTurno(20);
-    } else {
-      timerContainer.style.display = 'none';
+socket.on('atualizarEstadoTruco', (data) => {
+  valorMaoAtual = data.valorMao;
 
-      if (intervalTimer) {
-        clearInterval(intervalTimer);
-      }
-    }
+  const label =
+    document.getElementById(
+      'label-valor-mao'
+    );
+
+  if (label) {
+    label.innerText =
+      data.valorMao;
+  }
+
+  if (
+    data.isMaoDe11
+  ) {
+    modalMao11.style.display = 'none';
+
+    aguardandoDecisaoMao11 = false;
+
+    btnCorrerRodada.style.display =
+      'inline-block';
+
+    btnPedirTruco.style.display =
+      'none';
   }
 });
 
-// Reações
-document.querySelectorAll('.btn-emoji').forEach(btn => {
-  btn.onclick = () =>
-    socket.emit(
-      'enviarReacao',
-      btn.getAttribute('data-emoji')
-    );
-});
-
-socket.on('receberReacao', (data) => {
-  const container =
-    document.getElementById('container-reacoes-mesa');
-
-  const el = document.createElement('div');
-
-  el.className = 'emoji-flutuante';
-  el.innerText = data.emoji;
-
-  el.style.left =
-    `${Math.random() * 70 + 15}%`;
-
-  el.style.top = '50%';
-
-  container.appendChild(el);
-
-  setTimeout(() => el.remove(), 2000);
-});
+// ================================
+// FIM DA PARTIDA
+// ================================
 
 socket.on('fimDePartida', (data) => {
-  document.getElementById('pontos-a').innerText =
-    data.pontosA ?? 0;
+  clearInterval(
+    intervaloTimerTurno
+  );
 
-  document.getElementById('pontos-b').innerText =
-    data.pontosB ?? 0;
+  playSoundVictory();
 
-  atualizarBolinhas([]);
+  document.body.classList.add(
+    'tela-vitoria'
+  );
 
-  document.getElementById('cartas-mesa').innerHTML = '';
-  document.getElementById('minhas-cartas').innerHTML = '';
+  const overlay =
+    document.getElementById(
+      'overlay-vitoria'
+    ) || criarOverlayVitoria();
+
+  const titulo =
+    overlay.querySelector(
+      '.vitoria-titulo'
+    );
+
+  const subtitulo =
+    overlay.querySelector(
+      '.vitoria-subtitulo'
+    );
+
+  titulo.innerText =
+    `🏆 TIME ${data.vencedor} VENCEU!`;
+
+  subtitulo.innerText =
+    'Partida encerrada!';
+
+  overlay.style.display = 'flex';
+
+  document.getElementById(
+    'pontos-a'
+  ).innerText = 0;
+
+  document.getElementById(
+    'pontos-b'
+  ).innerText = 0;
+
+  document.getElementById(
+    'label-valor-mao'
+  ).innerText = 1;
+
+  minhasCartas = [];
+  cartaSelecionada = null;
+
+  containerCartas.innerHTML = '';
+  containerMesa.innerHTML = '';
 
   modalTruco.style.display = 'none';
   modalMao11.style.display = 'none';
 
-  aguardandoDecisaoMao11 = false;
-
   btnPedirTruco.style.display = 'none';
   btnCorrerRodada.style.display = 'none';
 
-  eMinhaVez = false;
-  bloqueioJogada = false;
+  aguardandoDecisaoMao11 = false;
 
-  alert(
-    `🏆 Fim de partida! Vencedor: Time ${data.vencedor}`
+  atualizarBolinhas([]);
+
+  setTimeout(() => {
+    overlay.style.display = 'none';
+
+    document.body.classList.remove(
+      'tela-vitoria'
+    );
+  }, 5000);
+});
+
+function criarOverlayVitoria() {
+  const overlay =
+    document.createElement('div');
+
+  overlay.id =
+    'overlay-vitoria';
+
+  overlay.className =
+    'overlay-evento';
+
+  overlay.innerHTML = `
+    <div class="vitoria-evento">
+      <div class="vitoria-trofeu">🏆</div>
+      <div class="vitoria-titulo">
+        TIME VENCEU!
+      </div>
+      <div class="vitoria-subtitulo">
+        Partida encerrada!
+      </div>
+      <div class="vitoria-confetes">
+        🎉 🎊 🎉 🎊 🎉
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(
+    overlay
+  );
+
+  return overlay;
+}
+
+// ================================
+// RANKING
+// ================================
+
+socket.on('atualizarRanking', (ranking) => {
+  const container =
+    document.getElementById(
+      'ranking-lista'
+    );
+
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  if (!ranking || !ranking.length) {
+    container.innerHTML =
+      '<div class="ranking-vazio">Nenhuma vitória registrada ainda.</div>';
+
+    return;
+  }
+
+  ranking.forEach((jogador, indice) => {
+    const item =
+      document.createElement('div');
+
+    item.className =
+      'ranking-item';
+
+    item.innerHTML = `
+      <span class="ranking-posicao">
+        ${indice + 1}º
+      </span>
+
+      <span class="ranking-nome">
+        ${jogador.avatar || '😀'}
+        ${jogador.apelido}
+      </span>
+
+      <span class="ranking-vitorias">
+        🏆 ${jogador.vitorias}
+      </span>
+    `;
+
+    container.appendChild(item);
+  });
+});
+
+// ================================
+// CHAT
+// ================================
+
+const btnEnviarChat =
+  document.getElementById(
+    'btn-enviar-chat'
+  );
+
+const inputChat =
+  document.getElementById(
+    'input-chat'
+  );
+
+const chatMensagens =
+  document.getElementById(
+    'chat-mensagens'
+  );
+
+if (btnEnviarChat && inputChat) {
+  btnEnviarChat.onclick = () => {
+    const mensagem =
+      inputChat.value.trim();
+
+    if (!mensagem) return;
+
+    socket.emit('enviarChat', {
+      mensagem
+    });
+
+    inputChat.value = '';
+  };
+
+  inputChat.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key === 'Enter') {
+        btnEnviarChat.click();
+      }
+    }
+  );
+}
+
+socket.on('novaMensagemChat', (data) => {
+  if (!chatMensagens) return;
+
+  const mensagem =
+    document.createElement('div');
+
+  mensagem.className =
+    'mensagem-chat';
+
+  mensagem.innerHTML = `
+    <strong>
+      ${data.avatar || ''} ${data.apelido}:
+    </strong>
+    ${data.mensagem}
+  `;
+
+  chatMensagens.appendChild(
+    mensagem
+  );
+
+  chatMensagens.scrollTop =
+    chatMensagens.scrollHeight;
+});
+
+// ================================
+// REAÇÕES
+// ================================
+
+document
+  .querySelectorAll('.btn-reacao')
+  .forEach(btn => {
+    btn.onclick = () => {
+      socket.emit(
+        'reacao',
+        btn.dataset.reacao
+      );
+    };
+  });
+
+socket.on('mostrarReacao', (data) => {
+  const el =
+    document.createElement('div');
+
+  el.className =
+    'reacao-flutuante';
+
+  el.innerText =
+    `${data.avatar || ''} ${data.reacao}`;
+
+  document.body.appendChild(el);
+
+  setTimeout(() => {
+    el.remove();
+  }, 1800);
+});
+
+// ================================
+// FRASES DOS BOTS
+// ================================
+
+socket.on('falaBot', (data) => {
+  if (!data) return;
+
+  const texto =
+    `${data.apelido}: ${data.frase}`;
+
+  falarTexto(texto);
+
+  const el =
+    document.createElement('div');
+
+  el.className =
+    'fala-bot';
+
+  el.innerHTML = `
+    <div class="fala-bot-avatar">
+      🤖
+    </div>
+
+    <div class="fala-bot-texto">
+      <strong>${data.apelido}</strong>
+      <br>
+      ${data.frase}
+    </div>
+  `;
+
+  document.body.appendChild(el);
+
+  setTimeout(() => {
+    el.remove();
+  }, 3500);
+});
+
+// ================================
+// DESCONEXÃO
+// ================================
+
+socket.on('disconnect', () => {
+  console.log(
+    'Desconectado do servidor.'
   );
 });
+
+socket.on('reconectado', (data) => {
+  if (!data) return;
+
+  console.log(
+    'Reconectado ao servidor.'
+  );
+});
+
+// ================================
+// QR CODE
+// ================================
+
+const btnAbrirQRCode =
+  document.getElementById(
+    'btn-abrir-qrcode'
+  );
+
+const modalQRCode =
+  document.getElementById(
+    'modal-qrcode'
+  );
+
+const btnFecharQRCode =
+  document.getElementById(
+    'btn-fechar-qrcode'
+  );
+
+if (btnAbrirQRCode) {
+  btnAbrirQRCode.onclick = () => {
+    if (modalQRCode) {
+      modalQRCode.style.display =
+        'block';
+    }
+
+    socket.emit(
+      'gerarQRCode',
+      {
+        nomeSala: nomeSalaAtual
+      }
+    );
+  };
+}
+
+if (btnFecharQRCode) {
+  btnFecharQRCode.onclick = () => {
+    modalQRCode.style.display =
+      'none';
+  };
+}
+
+socket.on('mostrarQRCode', (data) => {
+  const img =
+    document.getElementById(
+      'qrcode-img'
+    );
+
+  if (img) {
+    img.src =
+      data.qrCode;
+  }
+});
+
+// ================================
+// TEMA
+// ================================
+
+const selectTema =
+  document.getElementById(
+    'select-tema'
+  );
+
+if (selectTema) {
+  selectTema.addEventListener(
+    'change',
+    () => {
+      document.body.dataset.tema =
+        selectTema.value;
+
+      localStorage.setItem(
+        'temaTruco',
+        selectTema.value
+      );
+    }
+  );
+
+  const temaSalvo =
+    localStorage.getItem(
+      'temaTruco'
+    );
+
+  if (temaSalvo) {
+    selectTema.value =
+      temaSalvo;
+
+    document.body.dataset.tema =
+      temaSalvo;
+  }
+}
+
+// ================================
+// ESCONDER CARTA
+// ================================
+
+if (chkEsconderCarta) {
+  chkEsconderCarta.onchange = () => {
+    if (
+      cartaSelecionada !== null
+    ) {
+      const cartaEl =
+        document.querySelector(
+          `.carta-mao[data-indice="${cartaSelecionada}"]`
+        );
+
+      if (cartaEl) {
+        cartaEl.classList.toggle(
+          'carta-marcada-escondida',
+          chkEsconderCarta.checked
+        );
+      }
+    }
+  };
+}
+
+// ================================
+// LIMPEZA AO CARREGAR
+// ================================
+
+window.addEventListener(
+  'load',
+  () => {
+    document.body.classList.remove(
+      'minha-vez'
+    );
+
+    if (containerMesa) {
+      containerMesa.innerHTML = '';
+    }
+
+    if (containerCartas) {
+      containerCartas.innerHTML = '';
+    }
+  }
+);
