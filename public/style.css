@@ -1,0 +1,336 @@
+:root {
+  --bg-gradient: radial-gradient(circle at center, #1b4d2e 0%, #081c10 100%);
+  --gold-primary: #f1c40f;
+  --gold-hover: #e67e22;
+  --gold-gradient: linear-gradient(135deg, #f1c40f, #d35400);
+  --green-btn: linear-gradient(135deg, #2ecc71, #27ae60);
+  --red-btn: linear-gradient(135deg, #e74c3c, #c0392b);
+  --blue-btn: linear-gradient(135deg, #3498db, #2980b9);
+  --card-bg: #ffffff;
+  --panel-bg: rgba(12, 32, 20, 0.95);
+}
+
+/* TEMAS DE MESA */
+body.tema-verde { --bg-gradient: radial-gradient(circle at center, #1b4d2e 0%, #081c10 100%); }
+body.tema-neon { --bg-gradient: radial-gradient(circle at center, #2b1055 0%, #15052a 100%); }
+body.tema-faroeste { --bg-gradient: radial-gradient(circle at center, #795548 0%, #3e2723 100%); }
+body.tema-boteco { --bg-gradient: radial-gradient(circle at center, #d35400 0%, #2c3e50 100%); }
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+}
+
+body {
+  background: var(--bg-gradient);
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* CHAT RETRÁTIL E BOTÃO FLUTUANTE */
+.btn-toggle-chat {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 9000;
+  background: var(--gold-gradient);
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-unread {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: bold;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+}
+
+.box-chat-slide {
+  position: fixed;
+  top: 0;
+  right: -320px;
+  width: 300px;
+  height: 100%;
+  background: rgba(10, 20, 15, 0.98);
+  border-left: 2px solid var(--gold-primary);
+  z-index: 9500;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  transition: right 0.3s ease;
+  box-shadow: -5px 0 20px rgba(0,0,0,0.8);
+}
+
+.box-chat-slide.aberto {
+  right: 0;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  color: var(--gold-primary);
+}
+
+.btn-fechar-chat {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.mensagens-chat {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.input-chat-group {
+  display: flex;
+  gap: 5px;
+}
+
+.input-chat-group input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #111;
+  color: #fff;
+}
+
+.input-chat-group button {
+  padding: 8px 12px;
+  background: var(--gold-primary);
+  color: #000;
+  border-radius: 6px;
+}
+
+/* OVERLAYS E MODAIS */
+.numero-contagem {
+  font-size: 5rem;
+  color: var(--gold-primary);
+  animation: pulse 1s infinite;
+}
+
+.modal-regras-card {
+  max-height: 80vh;
+  overflow-y: auto;
+  text-align: left !important;
+}
+
+.btn-fechar {
+  position: absolute; top: 8px; right: 12px;
+  background: transparent; border: none; color: #fff; font-size: 1.8rem;
+}
+
+.topo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.header-botoes { display: flex; gap: 4px; align-items: center; }
+.select-tema {
+  background: rgba(0,0,0,0.6); color: var(--gold-primary); border: 1px solid var(--gold-primary);
+  border-radius: 6px; padding: 2px 4px; font-size: 0.75rem; font-weight: bold; outline: none;
+}
+
+.btn-regras {
+  background: rgba(255, 255, 255, 0.15); border: 1px solid var(--gold-primary);
+  color: #f1c40f; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold;
+}
+
+.overlay-embaralhar, .modal-overlay, .overlay-zap {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.modal-card {
+  background: var(--panel-bg); border: 2px solid var(--gold-primary);
+  border-radius: 14px; padding: 20px; width: 90%; max-width: 380px; text-align: center;
+}
+
+.modal-icone { font-size: 2.5rem; margin-bottom: 5px; }
+
+/* TELA DE LOGIN */
+#login-container { width: 100%; max-width: 360px; padding: 15px; }
+.card-login {
+  background: var(--panel-bg); border: 2px solid var(--gold-primary);
+  border-radius: 14px; padding: 20px; text-align: center;
+}
+.card-login h2 { color: var(--gold-primary); margin-bottom: 15px; font-size: 1.3rem; }
+.form-group { margin-bottom: 12px; text-align: left; }
+.form-group label { display: block; font-size: 0.8rem; color: #ddd; margin-bottom: 4px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; font-size: 0.9rem;
+}
+
+button { cursor: pointer; border: none; border-radius: 6px; font-weight: bold; }
+.btn-primary { width: 100%; padding: 12px; background: var(--gold-gradient); color: #000; font-size: 1rem; margin-top: 8px; }
+.btn-secondary { width: 100%; padding: 10px; background: rgba(255, 255, 255, 0.15); color: #fff; margin-top: 8px; border: 1px solid rgba(255,255,255,0.2); }
+
+/* APP DE JOGO ADAPTADO PARA MOBILE */
+#app {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px;
+}
+
+header {
+  background: var(--panel-bg); border: 1px solid var(--gold-primary);
+  border-radius: 10px; padding: 6px 10px; flex-shrink: 0;
+}
+
+.info-sala { font-size: 0.8rem; color: #ccc; }
+.destaque { color: var(--gold-primary); font-weight: bold; }
+.placar { display: flex; justify-content: space-around; align-items: center; margin: 2px 0; }
+.time { text-align: center; flex: 1; }
+.trofeus { font-size: 0.75rem; color: #f1c40f; }
+.nomes { font-weight: bold; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; margin: 0 auto; }
+.pts { font-size: 1.4rem; font-weight: 900; color: var(--gold-primary); line-height: 1; }
+
+.bolinhas-rodada { display: flex; justify-content: center; gap: 4px; margin-top: 2px; }
+.bolinha { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); }
+.bolinha.vitoria { background: #2ecc71; }
+.bolinha.derrota { background: #e74c3c; }
+.bolinha.empate { background: #e67e22; }
+
+.vs { font-weight: 900; color: #666; font-size: 0.8rem; padding: 0 4px; }
+
+.status-container { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.status { font-weight: bold; color: #2ecc71; font-size: 0.85rem; }
+.timer-turn { color: #f39c12; font-weight: bold; font-size: 0.8rem; }
+
+/* MESA RESPONSIVA */
+main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0;
+  position: relative;
+  min-height: 0;
+}
+
+.mesa {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px dashed rgba(243, 156, 18, 0.4);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px;
+  position: relative;
+}
+
+.area-vira, .area-jogadas { text-align: center; }
+.area-vira p, .area-jogadas p { font-size: 0.7rem; color: #aaa; margin-bottom: 4px; }
+
+/* CARTAS ENCOMPACTADAS PARA TELA PEQUENA */
+.cartas-container { display: flex; gap: 6px; justify-content: center; }
+.carta {
+  width: 52px; height: 78px; background: var(--card-bg); border-radius: 6px;
+  color: #111; font-size: 1.1rem; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5); cursor: pointer;
+}
+.carta.vermelho { color: #e74c3c; }
+.carta.escuro { background: #2c3e50; color: #ecf0f1; border: 1px solid #34495e; }
+.carta.vira { cursor: default; border: 2px solid var(--gold-primary); }
+
+/* REAÇÕES FLUTUANTES */
+.container-reacoes-flutuantes {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 50; overflow: hidden;
+}
+
+.emoji-flutuante {
+  position: absolute; font-size: 2.2rem;
+  animation: flutuarEmoji 2s ease-out forwards;
+}
+
+@keyframes flutuarEmoji {
+  0% { transform: translateY(0) scale(0.5); opacity: 1; }
+  100% { transform: translateY(-80px) scale(1); opacity: 0; }
+}
+
+/* FOOTER COMPACTO */
+footer {
+  background: var(--panel-bg); border: 1px solid var(--gold-primary);
+  border-radius: 10px; padding: 8px; text-align: center; position: relative; flex-shrink: 0;
+}
+
+.painel-reacoes { display: flex; justify-content: center; gap: 6px; margin-bottom: 4px; }
+.btn-emoji { background: rgba(255,255,255,0.1); border: none; font-size: 1.1rem; padding: 2px 6px; border-radius: 12px; }
+
+#meu-info { font-size: 0.75rem; color: var(--gold-primary); margin-bottom: 4px; font-weight: 600; }
+.controles-jogador { margin-bottom: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.toggle-esconder {
+  font-size: 0.75rem; color: #f1c40f; background: rgba(0, 0, 0, 0.4);
+  padding: 2px 8px; border-radius: 12px;
+}
+.btn-truco-action { padding: 6px 16px; background: var(--gold-gradient); color: #000; font-size: 0.85rem; border-radius: 15px; }
+
+.modal-truco {
+  position: absolute; top: -110px; left: 50%; transform: translateX(-50%);
+  background: rgba(15, 15, 15, 0.95); border: 2px solid var(--gold-primary);
+  border-radius: 10px; padding: 8px 12px; z-index: 100; width: 92%; max-width: 360px;
+}
+.modal-truco p { font-size: 0.8rem; font-weight: bold; margin-bottom: 6px; }
+.botoes-truco { display: flex; gap: 4px; justify-content: center; }
+.botoes-truco button { flex: 1; padding: 6px 2px; color: #fff; font-size: 0.75rem; }
+.btn-aceitar { background: var(--green-btn); }
+.btn-aumentar { background: var(--blue-btn); }
+.btn-correr { background: var(--red-btn); }
+
+/* EMBARALHAR ANIM */
+.monte-cartas { position: relative; width: 80px; height: 110px; margin: 0 auto; }
+.carta-animada {
+  position: absolute; top: 0; left: 0; width: 70px; height: 100px;
+  background: #2c3e50; border: 1px solid #34495e; border-radius: 8px;
+  font-size: 2rem; display: flex; align-items: center; justify-content: center;
+}
